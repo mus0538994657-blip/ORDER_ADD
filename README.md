@@ -68,7 +68,7 @@ SECRET_KEY=your-super-secret-key-here
 DATABASE_URL=sqlite:///workshop.db
 WORKSHOP_NAME=ورشة الزجاج الحديثة
 
-# Twilio (اختياري — للإشعارات)
+# Twilio (اختياري - للاشعارات)
 TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 TWILIO_AUTH_TOKEN=your_auth_token
 TWILIO_FROM_NUMBER=+966500000000
@@ -82,7 +82,7 @@ TWILIO_FROM_NUMBER=+966500000000
 ORDER_ADD/
 ├── app.py                      # Application Factory
 ├── run.py                      # نقطة التشغيل
-├── config.py                   # إعدادات البيئات
+├── config.py                   # اعدادات البيئات
 ├── extensions.py               # DB, Login, CSRF, Limiter
 ├── seeds.py                    # بيانات تجريبية
 ├── requirements.txt
@@ -97,14 +97,14 @@ ORDER_ADD/
 ├── blueprints/
 │   ├── auth/                   # تسجيل الدخول والخروج
 │   ├── main/                   # لوحة التحكم الرئيسية
-│   ├── customers/              # إدارة العملاء والمركبات
-│   ├── orders/                 # إدارة الطلبات
-│   ├── categories/             # إدارة الأصناف
+│   ├── customers/              # ادارة العملاء والمركبات
+│   ├── orders/                 # ادارة الطلبات
+│   ├── categories/             # ادارة الاصناف
 │   ├── reports/                # التقارير (Excel / PDF)
 │   └── api/                    # REST API v1
 │
 ├── utils/
-│   ├── pdf.py                  # توليد PDF بالعربية
+│   ├── pdf.py                  # توليد PDF بالعربية (A4 مضبوط)
 │   └── notifications.py        # Twilio SMS
 │
 ├── templates/
@@ -132,15 +132,15 @@ ORDER_ADD/
 |---|---|
 | `/` | لوحة التحكم |
 | `/customers` | قائمة العملاء |
-| `/customers/add` | إضافة عميل |
+| `/customers/add` | اضافة عميل |
 | `/customers/view/<id>` | تفاصيل العميل ومركباته |
 | `/customers/edit/<id>` | تعديل بيانات العميل |
-| `/customers/view/<id>/vehicles/add` | إضافة مركبة للعميل |
+| `/customers/view/<id>/vehicles/add` | اضافة مركبة للعميل |
 | `/orders` | قائمة الطلبات |
-| `/orders/add` | إضافة طلب جديد |
+| `/orders/add` | اضافة طلب جديد |
 | `/orders/edit/<id>` | تعديل الطلب |
 | `/orders/status/<id>` | تحديث حالة الطلب |
-| `/categories` | إدارة الأصناف |
+| `/categories` | ادارة الاصناف |
 | `/reports` | التقارير |
 | `/reports/export/excel` | تصدير Excel |
 | `/reports/export/pdf` | تصدير PDF |
@@ -152,7 +152,7 @@ ORDER_ADD/
 | `GET /api/v1/orders` | قائمة الطلبات (JSON) |
 | `GET /api/v1/customers` | قائمة العملاء (JSON) |
 | `GET /api/v1/vehicles` | قائمة المركبات (JSON) |
-| `GET /api/v1/stats/dashboard` | إحصائيات لوحة التحكم |
+| `GET /api/v1/stats/dashboard` | احصائيات لوحة التحكم |
 | `GET /api/v1/customers/<id>/vehicles` | مركبات عميل محدد |
 
 ---
@@ -162,33 +162,61 @@ ORDER_ADD/
 | الطبقة | التقنية |
 |---|---|
 | Backend | Flask 2.3 + SQLAlchemy |
-| قاعدة البيانات | SQLite (قابل للترقية إلى PostgreSQL) |
+| قاعدة البيانات | SQLite (قابل للترقية الى PostgreSQL) |
 | المصادقة | Flask-Login + CSRF (Flask-WTF) |
-| Frontend | Bootstrap 5 RTL + IBM Plex Sans Arabic |
-| التقارير | ReportLab (PDF) + OpenPyXL (Excel) |
-| الإشعارات | Twilio API |
+| Frontend | Bootstrap 5 RTL + **IBM Plex Sans Arabic** |
+| التنسيق | Design Tokens (`--ab-primary #00663d`) |
+| التقارير | ReportLab PDF (A4 مضبوط، 10pt) + OpenPyXL Excel |
+| الاشعارات | Twilio API |
 | الحماية | Flask-Limiter (Rate Limiting) |
 
 ---
 
-## الأمان
+## نظام التصميم (Design System)
 
-- ✅ CSRF Protection على جميع النماذج
-- ✅ كلمات المرور مشفرة بـ `werkzeug.security`
-- ✅ Rate Limiting على مسار تسجيل الدخول
-- ✅ `SECRET_KEY` من متغيرات البيئة فقط
-- ✅ SQLAlchemy ORM لمنع SQL Injection
-- ✅ `@login_required` على جميع المسارات الحساسة
+الواجهة مبنية على متغيرات CSS موحّدة:
+
+```css
+--ab-primary: #00663d        /* اللون الرئيسي */
+--ab-primary-dark: #0b7e3e   /* hover */
+--ab-secondary: #E0F5EC      /* خلفيات فاتحة */
+--ab-system-success: #006604
+--ab-system-warning: #f6c244
+--ab-system-error: #af0818
+```
+
+الخط الاساسي: **IBM Plex Sans Arabic** (Google Fonts) — مُطبَّق على جميع عناصر الصفحة.
+
+---
+
+## تقارير PDF
+
+- **A4 صارم** — الاعمدة تملا العرض المتاح بالضبط (`CONTENT_W = A4 - 2 × margin`)
+- **هيدر منظم** على كل صفحة: شريط اخضر (اسم الورشة + تاريخ) + شريط فاتح (عنوان التقرير)
+- **فوتر** على كل صفحة: رقم الصفحة يسارا
+- **خط 10pt** موحّد في جسم الجدول
+- **`splitByRow=True`** لضمان عدم تجاوز حدود الصفحة
+
+---
+
+## الامان
+
+- CSRF Protection على جميع النماذج
+- كلمات المرور مشفرة بـ `werkzeug.security`
+- Rate Limiting على مسار تسجيل الدخول
+- `SECRET_KEY` من متغيرات البيئة فقط
+- SQLAlchemy ORM لمنع SQL Injection
+- `@login_required` على جميع المسارات الحساسة
 
 ---
 
 ## حالات الطلب
 
 ```
-pending     → قيد الانتظار
-in_progress → قيد التنفيذ
-completed   → مكتمل
-cancelled   → ملغي
+pending     --> قيد الانتظار
+in_progress --> قيد التنفيذ
+completed   --> مكتمل
+cancelled   --> ملغي
 ```
 
 ---
@@ -196,7 +224,7 @@ cancelled   → ملغي
 ## المساهمة
 
 1. Fork المشروع
-2. أنشئ branch جديد: `git checkout -b feature/اسم-الميزة`
+2. انشئ branch جديد: `git checkout -b feature/اسم-الميزة`
 3. Commit: `git commit -m 'feat: وصف التغيير'`
 4. Push: `git push origin feature/اسم-الميزة`
 5. افتح Pull Request
@@ -206,3 +234,4 @@ cancelled   → ملغي
 ## الرخصة
 
 هذا المشروع مخصص للاستخدام الداخلي لورشة تركيب زجاج المركبات.
+
