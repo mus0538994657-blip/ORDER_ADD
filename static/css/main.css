@@ -1,103 +1,485 @@
 /* ===================================================
    نظام إدارة ورشة تركيب زجاج المركبات - Custom CSS
+   Typeface: IBM Plex Sans Arabic
    =================================================== */
 
+/* ---- Design Tokens ---- */
 :root {
-  --font-main: 'Cairo', 'Segoe UI', system-ui, sans-serif;
-  --color-primary: #0d6efd;
-  --sidebar-width: 240px;
+  /* Brand */
+  --ab-white: #fff;
+  --ab-primary: #00663d;
+  --ab-primary-dark: #0b7e3e;
+  --ab-primary-darker: #09572b;
+  --ab-primary-light: #aee6c6;
+  --ab-primary-lighter: rgba(245, 252, 246, .9843137255);
+  --ab-primary-xlight: #e8f4ed;
+  --ab-primary-xxlight: #e5efeb;
+  --ab-primary-8: rgba(14, 149, 73, .0784313725);
+  --ab-primary-1000: #075127;
+  --ab-primary-100: #e5f0e3;
+  --ab-primary-130: #3D8369;
+  --ab-primary-30: #008550;
+  --ab-primary-solid-hover: #075127;
+  --ab-primary-logo: #00663d;
+  --ab-primary-800: #108e47;
+  --ab-primary-1010: rgba(30, 194, 123, .2);
+  --ab-primary-1100: #003e29;
+  --ab-primary-placeholder: #93c3a9;
+  --ab-secondary-neutral: #f6f9f8;
+  --ab-secondary: #E0F5EC;
+  --ab-secondary-dark: #6f501d;
+  --ab-secondary-darker: #5e4214;
+  --ab-secondary-light: #efdfc5;
+  --ab-secondary-lighter: #faf4eb;
+  --ab-secondary-8: rgba(224, 245, 236, .08);
+  --ab-tertiary: #d2e3c8;
+  --ab-tertiary-light: #e5f0e3;
+  --ab-primary-Clickable: #05622e;
+  --ab-primary-scroll-thumb: rgba(16, 142, 71, .6);
+  --ab-primary-scroll-bg: rgba(16, 142, 71, .6);
+
+  /* System — Success */
+  --ab-system-success: #006604;
+  --ab-system-success-darker: #033b05;
+  --ab-system-success-light: #cce0cd;
+  --ab-system-success-lighter: #ebf3eb;
+  --ab-system-success-main: #1ec27b;
+  --ab-system-success-8: rgba(0, 102, 4, .08);
+  --ab-system-success-20: rgba(0, 102, 4, .2);
+  --ab-system-success-36: rgba(0, 102, 4, .36);
+  --ab-system-success-52: rgba(0, 102, 4, .52);
+  --ab-system-success-68: rgba(0, 102, 4, .68);
+  --ab-system-success-84: rgba(0, 102, 4, .84);
+
+  /* System — Warning */
+  --ab-system-warning: #f6c244;
+  --ab-system-warning-main: #ffc225;
+  --ab-system-warning-dark: #cc9d24;
+  --ab-system-warning-darker: #8a6a16;
+  --ab-system-warning-light: #ffd568;
+  --ab-system-warning-lighter: #fcedc7;
+  --ab-system-warning-8: rgba(246, 194, 68, .08);
+  --ab-system-warning-20: rgba(246, 194, 68, .2);
+  --ab-system-warning-36: rgba(246, 194, 68, .36);
+  --ab-system-warning-52: rgba(246, 194, 68, .52);
+  --ab-system-warning-68: rgba(246, 194, 68, .68);
+  --ab-system-warning-84: rgba(246, 194, 68, .84);
+
+  /* System — Error */
+  --ab-system-error: #af0818;
+  --ab-system-error-main: #ff4242;
+  --ab-system-error-dark: #9f2525;
+  --ab-system-error-darker: #812222;
+  --ab-system-error-light: #ff8484;
+  --ab-system-error-lighter: #ffe5e5;
+  --ab-system-error-8: rgba(175, 8, 24, .08);
+  --ab-system-error-20: rgba(175, 8, 24, .2);
+  --ab-system-error-36: rgba(175, 8, 24, .36);
+  --ab-system-error-52: rgba(175, 8, 24, .52);
+  --ab-system-error-68: rgba(175, 8, 24, .68);
+  --ab-system-error-84: rgba(175, 8, 24, .84);
+  --ab-system-error-600: #ffe5e5;
+
+  /* Grey scale */
+  --ab-grey-divider: #e1e1e1;
+  --ab-grey-8: rgba(42, 43, 45, .0784313725);
+  --ab-grey-20: rgba(42, 43, 45, .2);
+  --ab-grey-36: rgba(42, 43, 45, .3607843137);
+  --ab-grey-52: rgba(42, 43, 45, .5215686275);
+  --ab-grey-68: rgba(42, 43, 45, .6784313725);
+  --ab-grey-84: rgba(42, 43, 45, .8392156863);
+  --ab-grey-100: #f0f0f0;
+  --ab-grey-200: #e3e3e3;
+  --ab-grey-color-200: #f9fbfb;
+  --ab-grey-300: #cacaca;
+  --ab-grey-400: #b6b6b6;
+  --ab-grey-500: #b6b6b6;
+  --ab-grey-600: #969798;
+  --ab-grey-700: #73767a;
+  --ab-grey-800: #4f5154;
+  --ab-grey-900: #2e3032;
+  --ab-grey-1000: #232425;
+  --ab-natural-outline: #dbe0e6;
+
+  /* Buttons */
+  --ab-btn-success: #0a9458;
+  --ab-btn-success-hover: #d2f3e5;
+
+  /* Text */
+  --ab-text: #232323;
+  --ab-text-primary: #232425;
+  --ab-text-secondary: #525451;
+  --ab-text-disabled: #525451;
+  --ab-text-tertiary: #cacaca;
+  --ab-text-white: #fff;
+  --ab-text-grey: #969798;
+  --ab-text-dark-primary: #fff;
+  --ab-text-dark-secondary: #eef1f3;
+  --ab-text-dark-tertiary: #cacaca;
+
+  /* Graphics */
+  --ab-graphics-illustrations: #0e9549;
+
+  /* Breakpoints (reference only — use media queries) */
+  --screen-md: 768px;
+  --screen-lg: 992px;
+  --screen-xl: 1200px;
+
+  /* Spacing & transitions */
+  --ab-spacing: 1.5rem;
   --transition: 0.2s ease;
 }
 
-/* ---- الخط الأساسي ---- */
+/* ================================================================
+   الخط الأساسي العام: IBM Plex Sans Arabic
+   ================================================================ */
+*,
+*::before,
+*::after {
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+}
+
 body {
-  font-family: var(--font-main);
-  background-color: #f5f7fa;
-  color: #2d3748;
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  background-color: var(--ab-secondary-neutral);
+  color: var(--ab-text-primary);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 700;
+  color: var(--ab-text-primary);
+}
+
+p, span, a, label, button, input, select, textarea, td, th, li {
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
 }
 
 main {
   flex: 1;
 }
 
-/* ---- Navbar ---- */
-.navbar-brand {
-  font-size: 1.1rem;
-  letter-spacing: -0.3px;
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--ab-primary-scroll-bg); border-radius: 100px; }
+::-webkit-scrollbar-thumb { background: var(--ab-primary-scroll-thumb); border-radius: 100px; }
+
+/* ================================================================
+   Navbar
+   ================================================================ */
+.navbar {
+  background-color: var(--ab-primary) !important;
+  border-bottom: 1px solid var(--ab-primary-darker);
 }
 
-/* ---- Cards ---- */
+.navbar-brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--ab-text-white) !important;
+}
+
+.navbar-nav .nav-link {
+  color: rgba(255,255,255,.85) !important;
+  font-weight: 500;
+  transition: color var(--transition);
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  color: var(--ab-text-white) !important;
+}
+
+/* ================================================================
+   Cards
+   ================================================================ */
 .card {
-  border-radius: 0.75rem;
-  transition: box-shadow var(--transition);
+  border: 1px solid var(--ab-natural-outline);
+  border-radius: 0.875rem;
+  background: var(--ab-white);
+  transition: box-shadow var(--transition), transform var(--transition);
 }
 
 .card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 6px 24px var(--ab-grey-8) !important;
 }
 
-/* ---- الجداول ---- */
-.table > :not(caption) > * > * {
-  padding: 0.75rem 1rem;
+.card-header {
+  background: var(--ab-primary-xlight);
+  border-bottom: 1px solid var(--ab-tertiary);
+  font-weight: 700;
 }
 
-/* ---- حالات الطلبات ---- */
-.badge.bg-warning-subtle  { background-color: #fff3cd !important; }
-.badge.bg-info-subtle     { background-color: #cff4fc !important; }
-.badge.bg-success-subtle  { background-color: #d1e7dd !important; }
-.badge.bg-danger-subtle   { background-color: #f8d7da !important; }
-.badge.bg-secondary-subtle{ background-color: #e2e3e5 !important; }
-
-/* ---- أزرار ---- */
+/* ================================================================
+   Buttons — override Bootstrap with brand palette
+   ================================================================ */
 .btn {
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
   border-radius: 0.5rem;
   font-weight: 600;
+  font-size: 0.9rem;
   transition: all var(--transition);
 }
 
-.btn-primary { box-shadow: 0 2px 6px rgba(13,110,253,0.3); }
-.btn-success { box-shadow: 0 2px 6px rgba(25,135,84,0.3);  }
+.btn-primary {
+  background-color: var(--ab-primary);
+  border-color: var(--ab-primary);
+  color: var(--ab-text-white);
+  box-shadow: 0 2px 8px var(--ab-primary-8);
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--ab-primary-dark);
+  border-color: var(--ab-primary-dark);
+  box-shadow: 0 4px 12px var(--ab-primary-8);
+}
 
-/* ---- نماذج ---- */
+.btn-success {
+  background-color: var(--ab-btn-success);
+  border-color: var(--ab-btn-success);
+  color: var(--ab-text-white);
+}
+.btn-success:hover,
+.btn-success:focus {
+  background-color: var(--ab-primary-800);
+  border-color: var(--ab-primary-800);
+}
+
+.btn-outline-primary {
+  color: var(--ab-primary);
+  border-color: var(--ab-primary);
+}
+.btn-outline-primary:hover {
+  background-color: var(--ab-primary);
+  color: var(--ab-text-white);
+}
+
+/* ================================================================
+   Forms
+   ================================================================ */
 .form-control,
 .form-select {
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
   border-radius: 0.5rem;
-  border-color: #dee2e6;
+  border-color: var(--ab-natural-outline);
+  color: var(--ab-text-primary);
+  background-color: var(--ab-white);
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 
+.form-control::placeholder { color: var(--ab-primary-placeholder); }
+
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
+  border-color: var(--ab-primary);
+  box-shadow: 0 0 0 0.2rem var(--ab-primary-8);
+  outline: none;
 }
 
-/* ---- Pagination ---- */
-.pagination .page-link {
-  border-radius: 0.4rem !important;
-  margin: 0 2px;
+.form-label {
   font-weight: 600;
+  color: var(--ab-text-primary);
+  margin-bottom: 0.35rem;
 }
 
-/* ---- Progress bars ---- */
-.progress {
-  border-radius: 100px;
+.invalid-feedback { color: var(--ab-system-error); }
+.is-invalid { border-color: var(--ab-system-error) !important; }
+
+/* ================================================================
+   Tables
+   ================================================================ */
+.table {
+  border-color: var(--ab-grey-200);
 }
 
-/* ---- Stat cards ---- */
-.rounded-circle.p-3 {
+.table > :not(caption) > * > * {
+  padding: 0.8rem 1rem;
+  color: var(--ab-text-primary);
+}
+
+.table thead th {
+  background-color: var(--ab-primary-xlight);
+  color: var(--ab-primary-darker);
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-bottom: 2px solid var(--ab-tertiary);
+}
+
+.table-hover > tbody > tr:hover > * {
+  background-color: var(--ab-primary-8);
+}
+
+/* ================================================================
+   Badges — Order status
+   ================================================================ */
+.badge {
+  font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.78rem;
+  border-radius: 0.4rem;
+  padding: 0.3em 0.6em;
+}
+
+.badge.bg-warning-subtle   { background-color: var(--ab-system-warning-lighter) !important; color: var(--ab-system-warning-darker) !important; }
+.badge.bg-info-subtle      { background-color: #cff4fc !important; color: #055160 !important; }
+.badge.bg-success-subtle   { background-color: var(--ab-system-success-lighter) !important; color: var(--ab-system-success-darker) !important; }
+.badge.bg-danger-subtle    { background-color: var(--ab-system-error-lighter) !important; color: var(--ab-system-error-darker) !important; }
+.badge.bg-secondary-subtle { background-color: var(--ab-grey-100) !important; color: var(--ab-grey-800) !important; }
+
+/* ================================================================
+   Alerts
+   ================================================================ */
+.alert-success {
+  background-color: var(--ab-system-success-lighter);
+  border-color: var(--ab-system-success-light);
+  color: var(--ab-system-success-darker);
+}
+.alert-danger {
+  background-color: var(--ab-system-error-lighter);
+  border-color: var(--ab-system-error-light);
+  color: var(--ab-system-error-darker);
+}
+.alert-warning {
+  background-color: var(--ab-system-warning-lighter);
+  border-color: var(--ab-system-warning-light);
+  color: var(--ab-system-warning-darker);
+}
+
+/* ================================================================
+   Stat Cards (Dashboard)
+   ================================================================ */
+.stat-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 52px;
   height: 52px;
+  border-radius: 50%;
+  font-size: 1.4rem;
 }
 
-/* ---- Responsive ---- */
-@media (max-width: 576px) {
-  .display-1 { font-size: 4rem; }
-  h2 { font-size: 1.4rem; }
+.stat-icon.primary   { background-color: var(--ab-primary-8);           color: var(--ab-primary); }
+.stat-icon.success   { background-color: var(--ab-system-success-8);    color: var(--ab-system-success); }
+.stat-icon.warning   { background-color: var(--ab-system-warning-8);    color: var(--ab-system-warning-dark); }
+.stat-icon.error     { background-color: var(--ab-system-error-8);      color: var(--ab-system-error); }
+
+/* ================================================================
+   Pagination
+   ================================================================ */
+.pagination .page-link {
+  border-radius: 0.4rem !important;
+  margin: 0 2px;
+  font-weight: 600;
+  color: var(--ab-primary);
+  border-color: var(--ab-natural-outline);
+  transition: all var(--transition);
 }
+
+.pagination .page-item.active .page-link {
+  background-color: var(--ab-primary);
+  border-color: var(--ab-primary);
+  color: var(--ab-text-white);
+}
+
+.pagination .page-link:hover {
+  background-color: var(--ab-primary-xlight);
+  border-color: var(--ab-primary);
+  color: var(--ab-primary);
+}
+
+/* ================================================================
+   Progress bars
+   ================================================================ */
+.progress {
+  border-radius: 100px;
+  background-color: var(--ab-grey-200);
+}
+
+.progress-bar {
+  background-color: var(--ab-primary);
+}
+
+/* ================================================================
+   Sidebar / nav pills
+   ================================================================ */
+.nav-pills .nav-link {
+  color: var(--ab-text-secondary);
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all var(--transition);
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  background-color: var(--ab-primary);
+  color: var(--ab-text-white);
+}
+
+.nav-pills .nav-link:hover:not(.active) {
+  background-color: var(--ab-primary-xlight);
+  color: var(--ab-primary);
+}
+
+/* ================================================================
+   Breadcrumb
+   ================================================================ */
+.breadcrumb-item a {
+  color: var(--ab-primary);
+  text-decoration: none;
+}
+
+.breadcrumb-item.active { color: var(--ab-text-secondary); }
+
+/* ================================================================
+   Footer
+   ================================================================ */
+footer {
+  background-color: var(--ab-primary-1100);
+  color: var(--ab-text-dark-secondary);
+  font-size: 0.85rem;
+}
+
+footer a {
+  color: var(--ab-primary-light);
+  text-decoration: none;
+}
+
+/* ================================================================
+   Login page
+   ================================================================ */
+.login-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--ab-primary-1100) 0%, var(--ab-primary) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 1rem;
+  border: none;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+
+/* ================================================================
+   Responsive
+   ================================================================ */
+@media (max-width: 576px) {
+  .display-1 { font-size: 3.5rem; }
+  h2 { font-size: 1.35rem; }
+  .table-responsive-sm { font-size: 0.85rem; }
+}
+
+@media (max-width: 768px) {
+  body { font-size: 0.9rem; }
+}
+
