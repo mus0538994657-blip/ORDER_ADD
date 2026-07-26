@@ -40,8 +40,14 @@ def list_customers():
 @customers_bp.route('/view/<int:cust_id>')
 @login_required
 def view_customer(cust_id):
+    from models.order import Order
     customer = Customer.query.get_or_404(cust_id)
-    return render_template('customers/detail.html', customer=customer)
+    vehicles = customer.vehicles.order_by(Vehicle.plate_number).all()
+    recent_orders = customer.orders.order_by(Order.created_at.desc()).limit(5).all()
+    return render_template('customers/detail.html',
+                           customer=customer,
+                           vehicles=vehicles,
+                           recent_orders=recent_orders)
 
 
 # ---------------------------------------------------------------------------
