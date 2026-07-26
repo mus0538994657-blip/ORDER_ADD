@@ -1,0 +1,103 @@
+/* ===================================================
+   نظام إدارة ورشة تركيب زجاج المركبات - Custom CSS
+   =================================================== */
+
+:root {
+  --font-main: 'Cairo', 'Segoe UI', system-ui, sans-serif;
+  --color-primary: #0d6efd;
+  --sidebar-width: 240px;
+  --transition: 0.2s ease;
+}
+
+/* ---- الخط الأساسي ---- */
+body {
+  font-family: var(--font-main);
+  background-color: #f5f7fa;
+  color: #2d3748;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+/* ---- Navbar ---- */
+.navbar-brand {
+  font-size: 1.1rem;
+  letter-spacing: -0.3px;
+}
+
+/* ---- Cards ---- */
+.card {
+  border-radius: 0.75rem;
+  transition: box-shadow var(--transition);
+}
+
+.card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* ---- الجداول ---- */
+.table > :not(caption) > * > * {
+  padding: 0.75rem 1rem;
+}
+
+/* ---- حالات الطلبات ---- */
+.badge.bg-warning-subtle  { background-color: #fff3cd !important; }
+.badge.bg-info-subtle     { background-color: #cff4fc !important; }
+.badge.bg-success-subtle  { background-color: #d1e7dd !important; }
+.badge.bg-danger-subtle   { background-color: #f8d7da !important; }
+.badge.bg-secondary-subtle{ background-color: #e2e3e5 !important; }
+
+/* ---- أزرار ---- */
+.btn {
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+
+.btn-primary { box-shadow: 0 2px 6px rgba(13,110,253,0.3); }
+.btn-success { box-shadow: 0 2px 6px rgba(25,135,84,0.3);  }
+
+/* ---- نماذج ---- */
+.form-control,
+.form-select {
+  border-radius: 0.5rem;
+  border-color: #dee2e6;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.2rem rgba(13,110,253,0.15);
+}
+
+/* ---- Pagination ---- */
+.pagination .page-link {
+  border-radius: 0.4rem !important;
+  margin: 0 2px;
+  font-weight: 600;
+}
+
+/* ---- Progress bars ---- */
+.progress {
+  border-radius: 100px;
+}
+
+/* ---- Stat cards ---- */
+.rounded-circle.p-3 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 576px) {
+  .display-1 { font-size: 4rem; }
+  h2 { font-size: 1.4rem; }
+}

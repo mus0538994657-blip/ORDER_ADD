@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-right"></i>
+  </a>
+  <h2 class="fw-bold mb-0">{{ title }}</h2>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" novalidate>
+          {{ form.hidden_tag() }}
+
+          <!-- بيانات العميل -->
+          <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
+            <i class="bi bi-person-fill me-1"></i>بيانات العميل
+          </h6>
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-md-6">
+              {{ form.customer_name.label(class='form-label') }}
+              {{ form.customer_name(class='form-control' + (' is-invalid' if form.customer_name.errors else '')) }}
+              {% for e in form.customer_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-6">
+              {{ form.customer_phone.label(class='form-label') }}
+              {{ form.customer_phone(class='form-control' + (' is-invalid' if form.customer_phone.errors else ''), type='tel') }}
+              {% for e in form.customer_phone.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-12">
+              {{ form.customer_email.label(class='form-label') }}
+              {{ form.customer_email(class='form-control' + (' is-invalid' if form.customer_email.errors else '')) }}
+              {% for e in form.customer_email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <!-- بيانات المركبة -->
+          <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
+            <i class="bi bi-car-front me-1"></i>بيانات المركبة
+          </h6>
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+              {{ form.car_make.label(class='form-label') }}
+              {{ form.car_make(class='form-control' + (' is-invalid' if form.car_make.errors else '')) }}
+              {% for e in form.car_make.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-6 col-md-4">
+              {{ form.car_model.label(class='form-label') }}
+              {{ form.car_model(class='form-control' + (' is-invalid' if form.car_model.errors else '')) }}
+              {% for e in form.car_model.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-6 col-md-2">
+              {{ form.car_year.label(class='form-label') }}
+              {{ form.car_year(class='form-control' + (' is-invalid' if form.car_year.errors else '')) }}
+              {% for e in form.car_year.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-6 col-md-2">
+              {{ form.plate_number.label(class='form-label') }}
+              {{ form.plate_number(class='form-control' + (' is-invalid' if form.plate_number.errors else '')) }}
+              {% for e in form.plate_number.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <!-- تفاصيل الخدمة -->
+          <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
+            <i class="bi bi-wrench-adjustable me-1"></i>تفاصيل الخدمة
+          </h6>
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-md-4">
+              {{ form.category_id.label(class='form-label') }}
+              {{ form.category_id(class='form-select' + (' is-invalid' if form.category_id.errors else ''), id='category-select') }}
+              {% for e in form.category_id.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-6 col-md-3">
+              {{ form.price.label(class='form-label') }}
+              <div class="input-group">
+                {{ form.price(class='form-control' + (' is-invalid' if form.price.errors else ''), id='price-field', step='0.01') }}
+                <span class="input-group-text">ر.س</span>
+              </div>
+              {% for e in form.price.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-6 col-md-3">
+              {{ form.discount.label(class='form-label') }}
+              <div class="input-group">
+                {{ form.discount(class='form-control' + (' is-invalid' if form.discount.errors else ''), step='0.01') }}
+                <span class="input-group-text">ر.س</span>
+              </div>
+              {% for e in form.discount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-12 col-md-2">
+              {{ form.status.label(class='form-label') }}
+              {{ form.status(class='form-select' + (' is-invalid' if form.status.errors else '')) }}
+              {% for e in form.status.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+            <div class="col-12">
+              {{ form.notes.label(class='form-label') }}
+              {{ form.notes(class='form-control' + (' is-invalid' if form.notes.errors else '')) }}
+              {% for e in form.notes.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary">إلغاء</a>
+            {{ form.submit(class='btn btn-primary px-4') }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تعبئة السعر الافتراضي عند اختيار الصنف
+const categoryPrices = {{ category_prices | tojson }};
+document.getElementById('category-select').addEventListener('change', function () {
+  const price = categoryPrices[this.value];
+  if (price !== undefined) {
+    document.getElementById('price-field').value = price.toFixed(2);
+  }
+});
+</script>
+{% endblock %}

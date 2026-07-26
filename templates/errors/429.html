@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}429 — طلبات كثيرة{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <div class="display-1 text-warning fw-bold">429</div>
+  <h3 class="mt-2">طلبات كثيرة جداً</h3>
+  <p class="text-muted">لقد تجاوزت الحد المسموح من الطلبات. يرجى الانتظار قبل المحاولة مجدداً.</p>
+  <a href="{{ url_for('main_bp.index') }}" class="btn btn-primary">
+    <i class="bi bi-house me-1"></i>الصفحة الرئيسية
+  </a>
+</div>
+{% endblock %}

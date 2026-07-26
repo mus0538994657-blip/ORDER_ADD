@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}الطلبات — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<!-- رأس الصفحة -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h2 class="fw-bold mb-0"><i class="bi bi-list-check text-primary me-2"></i>الطلبات</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('orders_bp.export_excel') }}?status={{ status_filter }}&category={{ category_filter }}"
+       class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel me-1"></i>تصدير Excel
+    </a>
+    <a href="{{ url_for('orders_bp.add_order') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>طلب جديد
+    </a>
+  </div>
+</div>
+
+<!-- فلترة وبحث -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <input type="search" name="q" class="form-control form-control-sm"
+               placeholder="بحث بالاسم / الهاتف / رقم اللوحة / رقم الطلب"
+               value="{{ search }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">كل الحالات</option>
+          {% for s in statuses %}
+            <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="category" class="form-select form-select-sm">
+          <option value="">كل الأصناف</option>
+          {% for c in categories %}
+            <option value="{{ c.id }}" {% if c.id == category_filter %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-search"></i> بحث
+        </button>
+        {% if search or status_filter or category_filter %}
+        <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x-circle"></i>
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- الجدول -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if orders %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>رقم الطلب</th>
+            <th>العميل</th>
+            <th>السيارة</th>
+            <th>الخدمة</th>
+            <th>الإجمالي</th>
+            <th>الحالة</th>
+            <th>التاريخ</th>
+            <th class="text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td>
+              <a href="{{ url_for('orders_bp.order_detail', order_id=order.id) }}"
+                 class="badge bg-light text-dark border text-decoration-none">
+                {{ order.order_number }}
+              </a>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ order.customer_name }}</div>
+              <div class="text-muted small">{{ order.customer_phone or '' }}</div>
+            </td>
+            <td class="small text-muted">{{ order.car_full }}</td>
+            <td>{{ order.category.name if order.category else '—' }}</td>
+            <td class="fw-semibold">{{ '%.2f'|format(order.final_price) }} ر.س</td>
+            <td>
+              <span class="badge bg-{{ order.status_color }}-subtle text-{{ order.status_color }} border border-{{ order.status_color }}">
+                <i class="bi {{ order.status_icon }} me-1"></i>{{ order.status }}
+              </span>
+            </td>
+            <td class="small text-muted">{{ order.created_at.strftime('%Y-%m-%d') }}</td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('orders_bp.order_detail', order_id=order.id) }}"
+                   class="btn btn-outline-secondary" title="عرض"><i class="bi bi-eye"></i></a>
+                <a href="{{ url_for('orders_bp.edit_order', order_id=order.id) }}"
+                   class="btn btn-outline-primary" title="تعديل"><i class="bi bi-pencil"></i></a>
+                <button type="button" class="btn btn-outline-danger" title="حذف"
+                        data-bs-toggle="modal" data-bs-target="#deleteModal"
+                        data-order-id="{{ order.id }}"
+                        data-order-number="{{ order.order_number }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ترقيم الصفحات -->
+    {% if pagination.pages > 1 %}
+    <div class="d-flex justify-content-center py-3">
+      <nav>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('orders_bp.list_orders', page=pagination.prev_num, q=search, status=status_filter, category=category_filter) }}">
+              <i class="bi bi-chevron-right"></i>
+            </a>
+          </li>
+          {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+              <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('orders_bp.list_orders', page=p, q=search, status=status_filter, category=category_filter) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('orders_bp.list_orders', page=pagination.next_num, q=search, status=status_filter, category=category_filter) }}">
+              <i class="bi bi-chevron-left"></i>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox fs-1"></i>
+      <p class="mt-2">لا توجد طلبات مطابقة</p>
+      {% if not search and not status_filter and not category_filter %}
+        <a href="{{ url_for('orders_bp.add_order') }}" class="btn btn-primary btn-sm">أضف أول طلب</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- نافذة تأكيد الحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title text-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>تأكيد الحذف</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">هل أنت متأكد من حذف الطلب <strong id="modal-order-number"></strong>؟</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+        <form id="delete-form" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-sm">حذف</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('deleteModal').addEventListener('show.bs.modal', function (e) {
+  const btn = e.relatedTarget;
+  const orderId = btn.dataset.orderId;
+  const orderNumber = btn.dataset.orderNumber;
+  document.getElementById('modal-order-number').textContent = orderNumber;
+  document.getElementById('delete-form').action = `/orders/${orderId}/delete`;
+});
+</script>
+{% endblock %}
