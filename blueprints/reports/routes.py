@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, date
+from datetime import datetime
 from flask import (
     Blueprint, render_template, request, send_file, current_app,
 )
@@ -11,39 +11,42 @@ from models.category import Category
 reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
 
 
+def _apply_filters(query, date_from_str, date_to_str, status_filter, category_filter):
+    """يُطبّق الفلاتر على استعلام الطلبات."""
+    try:
+        if date_from_str:
+            query = query.filter(
+                Order.created_at >= datetime.strptime(date_from_str, '%Y-%m-%d')
+            )
+        if date_to_str:
+            dt = datetime.strptime(date_to_str, '%Y-%m-%d').replace(
+                hour=23, minute=59, second=59
+            )
+            query = query.filter(Order.created_at <= dt)
+    except ValueError:
+        pass
+    if status_filter:
+        query = query.filter_by(status=status_filter)
+    if category_filter:
+        query = query.filter_by(category_id=category_filter)
+    return query
+
+
 @reports_bp.route('/')
 @login_required
 def index():
-    """صفحة التقارير مع إحصائيات وفلترة."""
-    # معاملات الفلتر
     date_from_str = request.args.get('date_from', '')
     date_to_str = request.args.get('date_to', '')
     status_filter = request.args.get('status', '')
     category_filter = request.args.get('category', '', type=int)
 
-    query = Order.query
-
-    try:
-        if date_from_str:
-            date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
-            query = query.filter(Order.created_at >= date_from)
-        if date_to_str:
-            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').replace(
-                hour=23, minute=59, second=59
-            )
-            query = query.filter(Order.created_at <= date_to)
-    except ValueError:
-        pass
-
-    if status_filter:
-        query = query.filter_by(status=status_filter)
-    if category_filter:
-        query = query.filter_by(category_id=category_filter)
-
+    query = _apply_filters(
+        Order.query, date_from_str, date_to_str, status_filter, category_filter
+    )
     orders = query.order_by(Order.created_at.desc()).all()
 
-    # الإحصائيات
     total_revenue = sum(o.final_price for o in orders)
+
     stats_by_status = {}
     for s in Order.STATUSES:
         filtered = [o for o in orders if o.status == s]
@@ -78,77 +81,62 @@ def index():
     )
 
 
-@reports_bp.route('/export')
+# ---------------------------------------------------------------------------
+# تصدير Excel
+# ---------------------------------------------------------------------------
+
+@reports_bp.route('/export/excel')
 @login_required
 def export_excel():
-    """تصدير تقرير Excel شامل."""
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
 
-    # إعادة استخدام نفس منطق الفلتر
     date_from_str = request.args.get('date_from', '')
     date_to_str = request.args.get('date_to', '')
     status_filter = request.args.get('status', '')
     category_filter = request.args.get('category', '', type=int)
 
-    query = Order.query
-    try:
-        if date_from_str:
-            query = query.filter(Order.created_at >= datetime.strptime(date_from_str, '%Y-%m-%d'))
-        if date_to_str:
-            dt = datetime.strptime(date_to_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-            query = query.filter(Order.created_at <= dt)
-    except ValueError:
-        pass
-    if status_filter:
-        query = query.filter_by(status=status_filter)
-    if category_filter:
-        query = query.filter_by(category_id=category_filter)
-
-    orders = query.order_by(Order.created_at.desc()).all()
+    orders = _apply_filters(
+        Order.query, date_from_str, date_to_str, status_filter, category_filter
+    ).order_by(Order.created_at.desc()).all()
 
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'تقرير الطلبات'
     ws.sheet_view.rightToLeft = True
 
-    # الأنماط
-    title_font = Font(bold=True, size=14, color='1B4F72')
-    header_fill = PatternFill('solid', fgColor='1B4F72')
-    header_font = Font(bold=True, color='FFFFFF', size=11)
+    hdr_fill = PatternFill('solid', fgColor='1B4F72')
     alt_fill = PatternFill('solid', fgColor='EBF5FB')
-    center = Alignment(horizontal='center', vertical='center')
     thin = Side(style='thin', color='CCCCCC')
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal='center', vertical='center')
 
     # عنوان التقرير
     ws.merge_cells('A1:L1')
     ws['A1'] = f'تقرير الطلبات — {datetime.utcnow().strftime("%Y-%m-%d")}'
-    ws['A1'].font = title_font
+    ws['A1'].font = Font(bold=True, size=14, color='1B4F72')
     ws['A1'].alignment = center
     ws.row_dimensions[1].height = 28
 
-    # رأس الجدول
     headers = [
-        'رقم الطلب', 'العميل', 'الهاتف', 'السيارة', 'اللوحة',
-        'الخدمة', 'السعر', 'الخصم', 'الإجمالي', 'الحالة',
-        'ملاحظات', 'تاريخ الإنشاء',
+        'رقم الطلب', 'العميل', 'الهاتف', 'المركبة',
+        'الخدمة', 'السعر', 'الخصم', 'الإجمالي',
+        'الحالة', 'ملاحظات', 'تاريخ الإنشاء',
     ]
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=2, column=col, value=h)
-        cell.font = header_font
-        cell.fill = header_fill
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=2, column=c, value=h)
+        cell.font = Font(bold=True, color='FFFFFF', size=11)
+        cell.fill = hdr_fill
         cell.alignment = center
         cell.border = border
     ws.row_dimensions[2].height = 20
 
-    # الصفوف
     for r, order in enumerate(orders, 3):
         row_data = [
             order.order_number, order.customer_name,
-            order.customer_phone or '', order.car_full,
-            order.plate_number or '',
+            order.customer.phone if order.customer else '',
+            order.vehicle_info,
             order.category.name if order.category else '',
             order.price, order.discount, order.final_price,
             order.status, order.notes or '',
@@ -161,13 +149,12 @@ def export_excel():
             if r % 2 == 0:
                 cell.fill = alt_fill
 
-    # صف الإجماليات
     total_row = len(orders) + 3
     ws.cell(row=total_row, column=1, value='الإجمالي').font = Font(bold=True)
-    ws.cell(row=total_row, column=9, value=sum(o.final_price for o in orders)).font = Font(bold=True)
+    ws.cell(row=total_row, column=8,
+            value=sum(o.final_price for o in orders)).font = Font(bold=True)
 
-    # ضبط الأعمدة
-    for i, w in enumerate([15, 20, 15, 22, 14, 18, 10, 10, 10, 16, 25, 20], 1):
+    for i, w in enumerate([15, 20, 15, 22, 18, 10, 10, 10, 16, 25, 18], 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
     output = io.BytesIO()
@@ -180,3 +167,33 @@ def export_excel():
         as_attachment=True,
         download_name=filename,
     )
+
+
+# ---------------------------------------------------------------------------
+# تصدير PDF
+# ---------------------------------------------------------------------------
+
+@reports_bp.route('/export/pdf')
+@login_required
+def export_pdf():
+    date_from_str = request.args.get('date_from', '')
+    date_to_str = request.args.get('date_to', '')
+    status_filter = request.args.get('status', '')
+    category_filter = request.args.get('category', '', type=int)
+
+    orders = _apply_filters(
+        Order.query, date_from_str, date_to_str, status_filter, category_filter
+    ).order_by(Order.created_at.desc()).all()
+
+    filters = {
+        'date_from': date_from_str,
+        'date_to': date_to_str,
+        'status': status_filter,
+    }
+
+    from utils.pdf import generate_orders_pdf
+    buf = generate_orders_pdf(orders, filters)
+    filename = f'report_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.pdf'
+    return send_file(buf, mimetype='application/pdf',
+                     as_attachment=True, download_name=filename)
+

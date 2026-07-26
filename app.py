@@ -50,12 +50,16 @@ def _register_blueprints(app: Flask) -> None:
     from blueprints.orders import orders_bp
     from blueprints.categories import categories_bp
     from blueprints.reports import reports_bp
+    from blueprints.customers import customers_bp
+    from blueprints.api import api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(orders_bp)
     app.register_blueprint(categories_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(customers_bp)
+    app.register_blueprint(api_bp)
 
 
 # ---------------------------------------------------------------------------
@@ -96,12 +100,17 @@ def _register_error_handlers(app: Flask) -> None:
 
 def _register_shell_context(app: Flask) -> None:
     from models.user import User
+    from models.customer import Customer
+    from models.vehicle import Vehicle
     from models.category import Category
     from models.order import Order
 
     @app.shell_context_processor
     def make_shell_context():
-        return {'db': db, 'User': User, 'Category': Category, 'Order': Order}
+        return {
+            'db': db, 'User': User, 'Customer': Customer,
+            'Vehicle': Vehicle, 'Category': Category, 'Order': Order,
+        }
 
 
 # ---------------------------------------------------------------------------

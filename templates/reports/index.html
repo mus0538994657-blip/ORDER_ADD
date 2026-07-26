@@ -6,7 +6,11 @@
   <h2 class="fw-bold mb-0"><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>التقارير</h2>
   <a href="{{ url_for('reports_bp.export_excel') }}?date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}&category={{ category_filter }}"
      class="btn btn-success btn-sm">
-    <i class="bi bi-file-earmark-excel me-1"></i>تصدير Excel
+    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+  </a>
+  <a href="{{ url_for('reports_bp.export_pdf') }}?date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}&category={{ category_filter }}"
+     class="btn btn-danger btn-sm">
+    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
   </a>
 </div>
 

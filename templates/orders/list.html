@@ -84,9 +84,9 @@
             </td>
             <td>
               <div class="fw-semibold">{{ order.customer_name }}</div>
-              <div class="text-muted small">{{ order.customer_phone or '' }}</div>
+              <div class="text-muted small">{{ order.customer.phone if order.customer else '' }}</div>
             </td>
-            <td class="small text-muted">{{ order.car_full }}</td>
+            <td class="small text-muted">{{ order.vehicle_info }}</td>
             <td>{{ order.category.name if order.category else '—' }}</td>
             <td class="fw-semibold">{{ '%.2f'|format(order.final_price) }} ر.س</td>
             <td>

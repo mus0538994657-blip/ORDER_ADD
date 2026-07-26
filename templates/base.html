@@ -45,6 +45,12 @@
           </a>
         </li>
         <li class="nav-item">
+          <a class="nav-link {% if 'customers' in request.endpoint %}active{% endif %}"
+             href="{{ url_for('customers_bp.list_customers') }}">
+            <i class="bi bi-people-fill"></i> العملاء
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link {% if 'categories' in request.endpoint %}active{% endif %}"
              href="{{ url_for('categories_bp.list_categories') }}">
             <i class="bi bi-tags-fill"></i> الأصناف

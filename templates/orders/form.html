@@ -13,55 +13,39 @@
   <div class="col-12 col-lg-8">
     <div class="card border-0 shadow-sm">
       <div class="card-body p-4">
-        <form method="POST" novalidate>
+        <form method="POST" novalidate id="order-form">
           {{ form.hidden_tag() }}
 
-          <!-- بيانات العميل -->
+          <!-- اختيار العميل والمركبة -->
           <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
-            <i class="bi bi-person-fill me-1"></i>بيانات العميل
+            <i class="bi bi-person-fill me-1"></i>العميل والمركبة
           </h6>
           <div class="row g-3 mb-4">
             <div class="col-12 col-md-6">
-              {{ form.customer_name.label(class='form-label') }}
-              {{ form.customer_name(class='form-control' + (' is-invalid' if form.customer_name.errors else '')) }}
-              {% for e in form.customer_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+              {{ form.customer_id.label(class='form-label') }}
+              {{ form.customer_id(class='form-select' + (' is-invalid' if form.customer_id.errors else ''), id='customer-select') }}
+              {% for e in form.customer_id.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+              <div class="mt-1">
+                <a href="{{ url_for('customers_bp.add_customer') }}" target="_blank"
+                   class="small text-primary">
+                  <i class="bi bi-plus-circle me-1"></i>إضافة عميل جديد
+                </a>
+              </div>
             </div>
             <div class="col-12 col-md-6">
-              {{ form.customer_phone.label(class='form-label') }}
-              {{ form.customer_phone(class='form-control' + (' is-invalid' if form.customer_phone.errors else ''), type='tel') }}
-              {% for e in form.customer_phone.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="col-12">
-              {{ form.customer_email.label(class='form-label') }}
-              {{ form.customer_email(class='form-control' + (' is-invalid' if form.customer_email.errors else '')) }}
-              {% for e in form.customer_email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-            </div>
-          </div>
-
-          <!-- بيانات المركبة -->
-          <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
-            <i class="bi bi-car-front me-1"></i>بيانات المركبة
-          </h6>
-          <div class="row g-3 mb-4">
-            <div class="col-6 col-md-4">
-              {{ form.car_make.label(class='form-label') }}
-              {{ form.car_make(class='form-control' + (' is-invalid' if form.car_make.errors else '')) }}
-              {% for e in form.car_make.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="col-6 col-md-4">
-              {{ form.car_model.label(class='form-label') }}
-              {{ form.car_model(class='form-control' + (' is-invalid' if form.car_model.errors else '')) }}
-              {% for e in form.car_model.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="col-6 col-md-2">
-              {{ form.car_year.label(class='form-label') }}
-              {{ form.car_year(class='form-control' + (' is-invalid' if form.car_year.errors else '')) }}
-              {% for e in form.car_year.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
-            </div>
-            <div class="col-6 col-md-2">
-              {{ form.plate_number.label(class='form-label') }}
-              {{ form.plate_number(class='form-control' + (' is-invalid' if form.plate_number.errors else '')) }}
-              {% for e in form.plate_number.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+              {{ form.vehicle_id.label(class='form-label') }}
+              <select class="form-select" id="vehicle-select" name="vehicle_id">
+                <option value="0">— اختر عميلاً أولاً —</option>
+                {% for val, label in form.vehicle_id.choices %}
+                <option value="{{ val }}"
+                  {% if form.vehicle_id.data|string == val|string %}selected{% endif %}>
+                  {{ label }}
+                </option>
+                {% endfor %}
+              </select>
+              <div id="vehicle-loading" class="small text-muted mt-1 d-none">
+                <span class="spinner-border spinner-border-sm me-1"></span>جاري التحميل...
+              </div>
             </div>
           </div>
 
@@ -86,12 +70,16 @@
             <div class="col-6 col-md-3">
               {{ form.discount.label(class='form-label') }}
               <div class="input-group">
-                {{ form.discount(class='form-control' + (' is-invalid' if form.discount.errors else ''), step='0.01') }}
+                {{ form.discount(class='form-control' + (' is-invalid' if form.discount.errors else ''), id='discount-field', step='0.01') }}
                 <span class="input-group-text">ر.س</span>
               </div>
               {% for e in form.discount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
             <div class="col-12 col-md-2">
+              <label class="form-label">الإجمالي</label>
+              <div class="form-control bg-light fw-bold text-success" id="final-price">0.00</div>
+            </div>
+            <div class="col-12 col-md-4">
               {{ form.status.label(class='form-label') }}
               {{ form.status(class='form-select' + (' is-invalid' if form.status.errors else '')) }}
               {% for e in form.status.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
@@ -116,13 +104,77 @@
 
 {% block extra_js %}
 <script>
-// تعبئة السعر الافتراضي عند اختيار الصنف
 const categoryPrices = {{ category_prices | tojson }};
+const preselectedCustomerId = {{ preselect_customer_id | tojson }};
+const vehiclesApiUrl = '/api/v1/customers/';
+const csrfToken = '{{ csrf_token() }}';
+
+// عند تغيير الصنف — تحديث السعر
 document.getElementById('category-select').addEventListener('change', function () {
   const price = categoryPrices[this.value];
   if (price !== undefined) {
     document.getElementById('price-field').value = price.toFixed(2);
+    updateFinal();
   }
+});
+
+// حساب الإجمالي
+function updateFinal() {
+  const price = parseFloat(document.getElementById('price-field').value) || 0;
+  const discount = parseFloat(document.getElementById('discount-field').value) || 0;
+  const final = Math.max(0, price - discount);
+  document.getElementById('final-price').textContent = final.toFixed(2) + ' ر.س';
+}
+document.getElementById('price-field').addEventListener('input', updateFinal);
+document.getElementById('discount-field').addEventListener('input', updateFinal);
+
+// تحميل مركبات العميل بـ AJAX
+function loadVehicles(customerId, selectedVehicleId = null) {
+  if (!customerId || customerId == 0) return;
+  const loading = document.getElementById('vehicle-loading');
+  const select = document.getElementById('vehicle-select');
+  loading.classList.remove('d-none');
+  select.disabled = true;
+
+  fetch(vehiclesApiUrl + customerId + '/vehicles', {
+    headers: { 'X-CSRFToken': csrfToken }
+  })
+  .then(r => r.json())
+  .then(vehicles => {
+    select.innerHTML = '<option value="0">— بدون مركبة —</option>';
+    vehicles.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.label;
+      if (selectedVehicleId && v.id == selectedVehicleId) opt.selected = true;
+      select.appendChild(opt);
+    });
+    if (vehicles.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '0';
+      opt.textContent = '— لا توجد مركبات مسجّلة —';
+      select.appendChild(opt);
+    }
+  })
+  .catch(() => {})
+  .finally(() => {
+    loading.classList.add('d-none');
+    select.disabled = false;
+  });
+}
+
+document.getElementById('customer-select').addEventListener('change', function () {
+  loadVehicles(this.value);
+});
+
+// تحميل المركبات عند فتح الصفحة (تعديل)
+window.addEventListener('DOMContentLoaded', function () {
+  const custId = document.getElementById('customer-select').value;
+  const currentVehicle = document.getElementById('vehicle-select').value;
+  if (custId && custId != 0) {
+    loadVehicles(custId, currentVehicle);
+  }
+  updateFinal();
 });
 </script>
 {% endblock %}

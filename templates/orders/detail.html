@@ -25,15 +25,20 @@
       <div class="card-body">
         <dl class="row mb-0">
           <dt class="col-4 text-muted">الاسم</dt>
-          <dd class="col-8 fw-semibold">{{ order.customer_name }}</dd>
+          <dd class="col-8 fw-semibold">
+            {% if order.customer %}
+              <a href="{{ url_for('customers_bp.view_customer', cust_id=order.customer.id) }}"
+                 class="text-decoration-none">{{ order.customer.name }}</a>
+            {% else %}—{% endif %}
+          </dd>
           <dt class="col-4 text-muted">الهاتف</dt>
           <dd class="col-8">
-            {% if order.customer_phone %}
-              <a href="tel:{{ order.customer_phone }}">{{ order.customer_phone }}</a>
+            {% if order.customer and order.customer.phone %}
+              <a href="tel:{{ order.customer.phone }}">{{ order.customer.phone }}</a>
             {% else %}—{% endif %}
           </dd>
           <dt class="col-4 text-muted">البريد</dt>
-          <dd class="col-8">{{ order.customer_email or '—' }}</dd>
+          <dd class="col-8">{{ order.customer.email if order.customer else '—' }}</dd>
         </dl>
       </div>
     </div>
@@ -46,16 +51,24 @@
         <i class="bi bi-car-front text-primary me-1"></i>بيانات المركبة
       </div>
       <div class="card-body">
+        {% if order.vehicle %}
         <dl class="row mb-0">
           <dt class="col-4 text-muted">الماركة</dt>
-          <dd class="col-8">{{ order.car_make or '—' }}</dd>
+          <dd class="col-8">{{ order.vehicle.make or '—' }}</dd>
           <dt class="col-4 text-muted">الموديل</dt>
-          <dd class="col-8">{{ order.car_model or '—' }}</dd>
+          <dd class="col-8">{{ order.vehicle.model or '—' }}</dd>
           <dt class="col-4 text-muted">سنة الصنع</dt>
-          <dd class="col-8">{{ order.car_year or '—' }}</dd>
+          <dd class="col-8">{{ order.vehicle.year or '—' }}</dd>
           <dt class="col-4 text-muted">رقم اللوحة</dt>
-          <dd class="col-8 fw-semibold">{{ order.plate_number or '—' }}</dd>
+          <dd class="col-8 fw-semibold">
+            <span class="badge bg-dark">{{ order.vehicle.plate_number or '—' }}</span>
+          </dd>
+          <dt class="col-4 text-muted">اللون</dt>
+          <dd class="col-8">{{ order.vehicle.color or '—' }}</dd>
         </dl>
+        {% else %}
+        <p class="text-muted mb-0 small">لم يتم تحديد مركبة لهذا الطلب</p>
+        {% endif %}
       </div>
     </div>
   </div>

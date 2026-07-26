@@ -8,13 +8,16 @@ from flask_login import login_required, current_user
 from extensions import db
 from models.order import Order
 from models.category import Category
+from models.customer import Customer
+from models.vehicle import Vehicle
+from utils.notifications import notify_order_created, notify_order_status_changed
 from .forms import OrderForm
 
 orders_bp = Blueprint('orders_bp', __name__, url_prefix='/orders')
 
 
 # ---------------------------------------------------------------------------
-# قائمة الطلبات مع البحث والفلترة والترقيم
+# قائمة الطلبات
 # ---------------------------------------------------------------------------
 
 @orders_bp.route('/')
@@ -26,30 +29,27 @@ def list_orders():
     category_filter = request.args.get('category', '', type=int)
     per_page = current_app.config.get('ORDERS_PER_PAGE', 20)
 
-    query = Order.query
+    query = Order.query.join(Customer)
 
     if search:
         like = f'%{search}%'
         query = query.filter(
             db.or_(
-                Order.customer_name.ilike(like),
-                Order.customer_phone.ilike(like),
-                Order.plate_number.ilike(like),
+                Customer.name.ilike(like),
+                Customer.phone.ilike(like),
                 Order.order_number.ilike(like),
             )
         )
     if status_filter:
-        query = query.filter_by(status=status_filter)
+        query = query.filter(Order.status == status_filter)
     if category_filter:
-        query = query.filter_by(category_id=category_filter)
+        query = query.filter(Order.category_id == category_filter)
 
-    pagination = (
-        query
-        .order_by(Order.created_at.desc())
-        .paginate(page=page, per_page=per_page, error_out=False)
+    pagination = query.order_by(Order.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
     )
-
     categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+
     return render_template(
         'orders/list.html',
         pagination=pagination,
@@ -74,27 +74,33 @@ def order_detail(order_id):
 
 
 # ---------------------------------------------------------------------------
-# إضافة طلب جديد
+# إضافة طلب
 # ---------------------------------------------------------------------------
 
 @orders_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add_order():
-    form = OrderForm()
+    customers = Customer.query.filter_by(is_active=True).order_by(Customer.name).all()
     categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
     statuses = current_app.config['ORDER_STATUSES']
-    form.populate_choices(categories, statuses)
+
+    # تحديد عميل مسبق من URL
+    preselect_customer_id = request.args.get('customer_id', 0, type=int)
+    preselect_vehicles = []
+    if preselect_customer_id:
+        cust = Customer.query.get(preselect_customer_id)
+        if cust:
+            preselect_vehicles = cust.vehicles.all()
+
+    form = OrderForm()
+    form.populate_choices(customers, categories, statuses, preselect_vehicles)
 
     if form.validate_on_submit():
+        vehicle_id = form.vehicle_id.data if form.vehicle_id.data else None
         order = Order(
             order_number=Order.generate_order_number(),
-            customer_name=form.customer_name.data.strip(),
-            customer_phone=form.customer_phone.data.strip() if form.customer_phone.data else None,
-            customer_email=form.customer_email.data.strip().lower() if form.customer_email.data else None,
-            car_make=form.car_make.data.strip() if form.car_make.data else None,
-            car_model=form.car_model.data.strip() if form.car_model.data else None,
-            car_year=form.car_year.data.strip() if form.car_year.data else None,
-            plate_number=form.plate_number.data.strip().upper() if form.plate_number.data else None,
+            customer_id=form.customer_id.data,
+            vehicle_id=vehicle_id,
             category_id=form.category_id.data,
             price=form.price.data,
             discount=form.discount.data or 0.0,
@@ -105,16 +111,17 @@ def add_order():
         order.calculate_final_price()
         db.session.add(order)
         db.session.commit()
-        flash(f'✅ تم إنشاء الطلب {order.order_number} بنجاح', 'success')
+        notify_order_created(order)
+        flash(f'✅ تم إنشاء الطلب {order.order_number}', 'success')
         return redirect(url_for('orders_bp.order_detail', order_id=order.id))
 
-    # تعبئة السعر الافتراضي عند التحميل الأول
     category_prices = {c.id: c.default_price for c in categories}
     return render_template(
         'orders/form.html',
         form=form,
         title='طلب جديد',
         category_prices=category_prices,
+        preselect_customer_id=preselect_customer_id,
     )
 
 
@@ -130,19 +137,20 @@ def edit_order(order_id):
         flash('لا يمكن تعديل طلب ملغي', 'warning')
         return redirect(url_for('orders_bp.order_detail', order_id=order.id))
 
-    form = OrderForm(obj=order)
+    customers = Customer.query.filter_by(is_active=True).order_by(Customer.name).all()
     categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
     statuses = current_app.config['ORDER_STATUSES']
-    form.populate_choices(categories, statuses)
+
+    # تحميل مركبات العميل الحالي
+    current_vehicles = order.customer.vehicles.all() if order.customer else []
+
+    form = OrderForm()
+    form.populate_choices(customers, categories, statuses, current_vehicles)
 
     if form.validate_on_submit():
-        order.customer_name = form.customer_name.data.strip()
-        order.customer_phone = form.customer_phone.data.strip() if form.customer_phone.data else None
-        order.customer_email = form.customer_email.data.strip().lower() if form.customer_email.data else None
-        order.car_make = form.car_make.data.strip() if form.car_make.data else None
-        order.car_model = form.car_model.data.strip() if form.car_model.data else None
-        order.car_year = form.car_year.data.strip() if form.car_year.data else None
-        order.plate_number = form.plate_number.data.strip().upper() if form.plate_number.data else None
+        vehicle_id = form.vehicle_id.data if form.vehicle_id.data else None
+        order.customer_id = form.customer_id.data
+        order.vehicle_id = vehicle_id
         order.category_id = form.category_id.data
         order.price = form.price.data
         order.discount = form.discount.data or 0.0
@@ -153,6 +161,16 @@ def edit_order(order_id):
         flash(f'✅ تم تحديث الطلب {order.order_number}', 'success')
         return redirect(url_for('orders_bp.order_detail', order_id=order.id))
 
+    # تعبئة القيم الحالية
+    if request.method == 'GET':
+        form.customer_id.data = order.customer_id
+        form.vehicle_id.data = str(order.vehicle_id) if order.vehicle_id else '0'
+        form.category_id.data = order.category_id
+        form.price.data = order.price
+        form.discount.data = order.discount
+        form.status.data = order.status
+        form.notes.data = order.notes
+
     category_prices = {c.id: c.default_price for c in categories}
     return render_template(
         'orders/form.html',
@@ -160,6 +178,7 @@ def edit_order(order_id):
         order=order,
         title=f'تعديل الطلب {order.order_number}',
         category_prices=category_prices,
+        preselect_customer_id=order.customer_id,
     )
 
 
@@ -171,33 +190,39 @@ def edit_order(order_id):
 @login_required
 def delete_order(order_id):
     order = Order.query.get_or_404(order_id)
-    order_number = order.order_number
+    number = order.order_number
     db.session.delete(order)
     db.session.commit()
-    flash(f'🗑️ تم حذف الطلب {order_number}', 'info')
+    flash(f'🗑️ تم حذف الطلب {number}', 'info')
     return redirect(url_for('orders_bp.list_orders'))
 
 
 # ---------------------------------------------------------------------------
-# تحديث الحالة (AJAX)
+# تحديث الحالة (AJAX + POST)
 # ---------------------------------------------------------------------------
 
 @orders_bp.route('/<int:order_id>/status', methods=['POST'])
 @login_required
 def update_status(order_id):
     order = Order.query.get_or_404(order_id)
-    new_status = request.json.get('status') if request.is_json else request.form.get('status')
-
+    new_status = (
+        request.json.get('status')
+        if request.is_json
+        else request.form.get('status')
+    )
     if new_status not in Order.STATUSES:
         return jsonify({'error': 'حالة غير صالحة'}), 400
 
+    old_status = order.status
     order.status = new_status
     db.session.commit()
-    return jsonify({
-        'success': True,
-        'status': order.status,
-        'color': order.status_color,
-    })
+    notify_order_status_changed(order, old_status)
+
+    if request.is_json:
+        return jsonify({'success': True, 'status': order.status,
+                        'color': order.status_color})
+    flash(f'✅ تم تحديث حالة الطلب إلى "{new_status}"', 'success')
+    return redirect(url_for('orders_bp.order_detail', order_id=order.id))
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +232,6 @@ def update_status(order_id):
 @orders_bp.route('/export')
 @login_required
 def export_excel():
-    """تصدير الطلبات إلى ملف Excel منسَّق RTL."""
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
@@ -220,7 +244,6 @@ def export_excel():
         query = query.filter_by(status=status_filter)
     if category_filter:
         query = query.filter_by(category_id=category_filter)
-
     orders = query.order_by(Order.created_at.desc()).all()
 
     wb = openpyxl.Workbook()
@@ -228,66 +251,51 @@ def export_excel():
     ws.title = 'الطلبات'
     ws.sheet_view.rightToLeft = True
 
-    # الألوان
     header_fill = PatternFill('solid', fgColor='1B4F72')
     alt_fill = PatternFill('solid', fgColor='EBF5FB')
     thin = Side(style='thin', color='BBBBBB')
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
     headers = [
-        'رقم الطلب', 'العميل', 'الهاتف', 'السيارة', 'اللوحة',
-        'الخدمة', 'السعر', 'الخصم', 'الإجمالي', 'الحالة',
-        'ملاحظات', 'تاريخ الإنشاء',
+        'رقم الطلب', 'العميل', 'الهاتف', 'المركبة',
+        'الخدمة', 'السعر', 'الخصم', 'الإجمالي',
+        'الحالة', 'ملاحظات', 'تاريخ الإنشاء',
     ]
-
-    # رأس الجدول
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num, value=header)
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
         cell.font = Font(bold=True, color='FFFFFF', size=11)
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center', vertical='center')
         cell.border = border
-
     ws.row_dimensions[1].height = 22
 
-    # البيانات
-    for row_num, order in enumerate(orders, 2):
+    for r, order in enumerate(orders, 2):
         row_data = [
             order.order_number,
             order.customer_name,
-            order.customer_phone or '',
-            order.car_full,
-            order.plate_number or '',
+            order.customer.phone if order.customer else '',
+            order.vehicle_info,
             order.category.name if order.category else '',
-            order.price,
-            order.discount,
-            order.final_price,
-            order.status,
-            order.notes or '',
-            order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '',
+            order.price, order.discount, order.final_price,
+            order.status, order.notes or '',
+            order.created_at.strftime('%Y-%m-%d') if order.created_at else '',
         ]
-        fill = alt_fill if row_num % 2 == 0 else None
-        for col_num, value in enumerate(row_data, 1):
-            cell = ws.cell(row=row_num, column=col_num, value=value)
+        fill = alt_fill if r % 2 == 0 else None
+        for c, val in enumerate(row_data, 1):
+            cell = ws.cell(row=r, column=c, value=val)
             cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
             cell.border = border
             if fill:
                 cell.fill = fill
 
-    # عرض الأعمدة تلقائياً
-    col_widths = [15, 20, 15, 22, 14, 18, 10, 10, 10, 16, 25, 20]
-    for i, width in enumerate(col_widths, 1):
-        ws.column_dimensions[get_column_letter(i)].width = width
+    for i, w in enumerate([15, 20, 15, 22, 18, 10, 10, 10, 16, 25, 18], 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
 
-    # حفظ في الذاكرة
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
-
     filename = f'orders_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=filename,
-    )
+    return send_file(output,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=filename)
+

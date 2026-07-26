@@ -3,7 +3,7 @@ from extensions import db
 
 
 class Order(db.Model):
-    """نموذج طلبات العمل."""
+    """نموذج طلبات العمل — مرتبط بعميل ومركبة."""
 
     __tablename__ = 'orders'
 
@@ -32,23 +32,32 @@ class Order(db.Model):
     # الأعمدة
     id = db.Column(db.Integer, primary_key=True)
     order_number = db.Column(db.String(20), unique=True, nullable=False, index=True)
-    customer_name = db.Column(db.String(150), nullable=False)
-    customer_phone = db.Column(db.String(30), nullable=True)
-    customer_email = db.Column(db.String(120), nullable=True)
-    car_make = db.Column(db.String(100), nullable=True)
-    car_model = db.Column(db.String(100), nullable=True)
-    car_year = db.Column(db.String(10), nullable=True)
-    plate_number = db.Column(db.String(30), nullable=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False, index=True)
+
+    # المفاتيح الخارجية
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'),
+                            nullable=False, index=True)
+    vehicle_id = db.Column(db.Integer, db.ForeignKey('vehicles.id'),
+                           nullable=True, index=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'),
+                            nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    # التسعير
     price = db.Column(db.Float, nullable=False, default=0.0)
     discount = db.Column(db.Float, nullable=False, default=0.0)
     final_price = db.Column(db.Float, nullable=False, default=0.0)
-    status = db.Column(db.String(30), nullable=False, default=STATUS_PENDING, index=True)
+
+    # الحالة والملاحظات
+    status = db.Column(db.String(30), nullable=False,
+                       default=STATUS_PENDING, index=True)
     notes = db.Column(db.Text, nullable=True)
-    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # التواريخ
+    created_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           nullable=False, index=True)
     updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        db.DateTime, default=datetime.utcnow,
+        onupdate=datetime.utcnow, nullable=False
     )
 
     # ---------------------------------------------------------------------------
@@ -65,7 +74,6 @@ class Order(db.Model):
         return f'ORD-{year}-{count + 1:04d}'
 
     def calculate_final_price(self) -> None:
-        """يحسب السعر النهائي بعد خصم الخصم."""
         self.final_price = max(0.0, self.price - self.discount)
 
     # ---------------------------------------------------------------------------
@@ -81,10 +89,30 @@ class Order(db.Model):
         return self.STATUS_ICONS.get(self.status, 'bi-circle')
 
     @property
-    def car_full(self) -> str:
-        """وصف السيارة كاملاً في نص واحد."""
-        parts = filter(None, [self.car_make, self.car_model, self.car_year])
-        return ' '.join(parts) or '—'
+    def customer_name(self) -> str:
+        return self.customer.name if self.customer else '—'
+
+    @property
+    def vehicle_info(self) -> str:
+        return self.vehicle.full_description if self.vehicle else '—'
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'order_number': self.order_number,
+            'customer': self.customer_name,
+            'customer_phone': self.customer.phone if self.customer else '',
+            'vehicle': self.vehicle_info,
+            'category': self.category.name if self.category else '',
+            'price': self.price,
+            'discount': self.discount,
+            'final_price': self.final_price,
+            'status': self.status,
+            'status_color': self.status_color,
+            'notes': self.notes or '',
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M') if self.created_at else '',
+        }
 
     def __repr__(self) -> str:
         return f'<Order {self.order_number}>'
+
