@@ -192,7 +192,8 @@ def export_pdf():
     }
 
     from utils.pdf import generate_orders_pdf
-    buf = generate_orders_pdf(orders, filters)
+    workshop_name = current_app.config.get('WORKSHOP_NAME', 'ورشة الزجاج')
+    buf = generate_orders_pdf(orders, filters, workshop_name=workshop_name)
     filename = f'report_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.pdf'
     return send_file(buf, mimetype='application/pdf',
                      as_attachment=True, download_name=filename)
