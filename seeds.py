@@ -16,14 +16,18 @@ def _seed_categories() -> None:
     if Category.query.count():
         return
     defaults = [
-        ('زجاج أمامي', 'تركيب أو تبديل الزجاج الأمامي للمركبة', 350.0),
-        ('زجاج خلفي', 'تركيب أو تبديل الزجاج الخلفي للمركبة', 250.0),
-        ('زجاج جانبي', 'تركيب أو تبديل الزجاج الجانبي', 180.0),
-        ('فتحة سقف', 'تركيب أو تبديل زجاج فتحة السقف', 400.0),
-        ('تظليل زجاج', 'خدمة تظليل الزجاج بأفضل الأنواع', 150.0),
+        # (code,  name,          description,                              unit,    default_price)
+        ('GLS-001', 'زجاج أمامي',  'تركيب أو تبديل الزجاج الأمامي للمركبة',  'قطعة', 350.0),
+        ('GLS-002', 'زجاج خلفي',   'تركيب أو تبديل الزجاج الخلفي للمركبة',   'قطعة', 250.0),
+        ('GLS-003', 'زجاج جانبي',  'تركيب أو تبديل الزجاج الجانبي',          'قطعة', 180.0),
+        ('GLS-004', 'فتحة سقف',    'تركيب أو تبديل زجاج فتحة السقف',         'قطعة', 400.0),
+        ('GLS-005', 'تظليل زجاج',  'خدمة تظليل الزجاج بأفضل الأنواع',        'متر',  150.0),
     ]
-    for name, desc, price in defaults:
-        db.session.add(Category(name=name, description=desc, default_price=price))
+    for code, name, desc, unit, price in defaults:
+        db.session.add(Category(
+            code=code, name=name, description=desc,
+            unit=unit, default_price=price,
+        ))
     db.session.commit()
 
 

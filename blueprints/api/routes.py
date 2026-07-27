@@ -1,6 +1,6 @@
-"""
-API v1 — مسارات JSON للاستخدام الداخلي.
-المصادقة عبر الجلسة (Flask-Login) فقط.
+﻿"""
+API v1 â€” ظ…ط³ط§ط±ط§طھ JSON ظ„ظ„ط§ط³طھط®ط¯ط§ظ… ط§ظ„ط¯ط§ط®ظ„ظٹ.
+ط§ظ„ظ…طµط§ط¯ظ‚ط© ط¹ط¨ط± ط§ظ„ط¬ظ„ط³ط© (Flask-Login) ظپظ‚ط·.
 """
 from datetime import datetime
 from flask import Blueprint, jsonify, request, abort
@@ -9,6 +9,7 @@ from extensions import db
 from models.order import Order
 from models.customer import Customer
 from models.vehicle import Vehicle
+from models.category import Category
 
 api_bp = Blueprint('api_bp', __name__, url_prefix='/api/v1')
 
@@ -91,7 +92,7 @@ def api_customers():
 
 
 # ---------------------------------------------------------------------------
-# /api/v1/customers/<id>/vehicles  — لتحميل المركبات بـ AJAX في نموذج الطلب
+# /api/v1/customers/<id>/vehicles  â€” ظ„طھط­ظ…ظٹظ„ ط§ظ„ظ…ط±ظƒط¨ط§طھ ط¨ظ€ AJAX ظپظٹ ظ†ظ…ظˆط°ط¬ ط§ظ„ط·ظ„ط¨
 # ---------------------------------------------------------------------------
 
 @api_bp.route('/customers/<int:cust_id>/vehicles')
@@ -133,6 +134,45 @@ def api_vehicles():
 
 
 # ---------------------------------------------------------------------------
+# /api/v1/categories/search?code=<code>  â€” ط§ظ„ط¨ط­ط« ط¨ظƒظˆط¯ ط§ظ„طµظ†ظپ (ظ„ظ„ظ€ AJAX ظپظٹ ط§ظ„ط·ظ„ط¨)
+# ---------------------------------------------------------------------------
+
+@api_bp.route('/categories/search')
+@login_required
+def api_category_search():
+    """
+    ظٹظڈط¹ظٹط¯ ط¨ظٹط§ظ†ط§طھ ط§ظ„طµظ†ظپ ط¹ظ†ط¯ ط§ظ„ط¨ط­ط« ط¨ط§ظ„ظƒظˆط¯ ط£ظˆ ط§ظ„ط§ط³ظ….
+    Query params:
+        code  â€” ظƒظˆط¯ ط§ظ„طµظ†ظپ (ظ…ط·ط§ط¨ظ‚ط© ظƒط§ظ…ظ„ط©)
+        q     â€” ط¨ط­ط« ط¬ط²ط¦ظٹ ظپظٹ ط§ظ„ظƒظˆط¯ ط£ظˆ ط§ظ„ط§ط³ظ…
+    """
+    code = request.args.get('code', '').strip().upper()
+    q    = request.args.get('q', '').strip()
+
+    if code:
+        cat = Category.query.filter(
+            db.func.upper(Category.code) == code,
+            Category.is_active == True,
+        ).first()
+        if not cat:
+            return jsonify({'error': 'ط§ظ„ظƒظˆط¯ ط؛ظٹط± ظ…ظˆط¬ظˆط¯'}), 404
+        return jsonify(cat.to_dict())
+
+    if q:
+        like = f'%{q}%'
+        cats = Category.query.filter(
+            Category.is_active == True,
+            db.or_(
+                Category.code.ilike(like),
+                Category.name.ilike(like),
+            )
+        ).order_by(Category.code).limit(20).all()
+        return jsonify([c.to_dict() for c in cats])
+
+    return jsonify({'error': 'ظٹط¬ط¨ طھظ…ط±ظٹط± code ط£ظˆ q'}), 400
+
+
+# ---------------------------------------------------------------------------
 # /api/v1/stats/dashboard
 # ---------------------------------------------------------------------------
 
@@ -142,10 +182,10 @@ def api_dashboard_stats():
     today = datetime.utcnow().date()
 
     total_orders = Order.query.count()
-    pending = Order.query.filter_by(status=Order.STATUS_PENDING).count()
-    in_progress = Order.query.filter_by(status=Order.STATUS_IN_PROGRESS).count()
-    completed = Order.query.filter_by(status=Order.STATUS_COMPLETED).count()
-    cancelled = Order.query.filter_by(status=Order.STATUS_CANCELLED).count()
+    pending      = Order.query.filter_by(status=Order.STATUS_PENDING).count()
+    in_progress  = Order.query.filter_by(status=Order.STATUS_IN_PROGRESS).count()
+    completed    = Order.query.filter_by(status=Order.STATUS_COMPLETED).count()
+    cancelled    = Order.query.filter_by(status=Order.STATUS_CANCELLED).count()
 
     revenue = db.session.query(
         db.func.sum(Order.final_price)
@@ -156,18 +196,20 @@ def api_dashboard_stats():
     ).count()
 
     total_customers = Customer.query.filter_by(is_active=True).count()
-    total_vehicles = Vehicle.query.count()
+    total_vehicles  = Vehicle.query.count()
 
     return jsonify({
         'orders': {
-            'total': total_orders,
-            'pending': pending,
+            'total':       total_orders,
+            'pending':     pending,
             'in_progress': in_progress,
-            'completed': completed,
-            'cancelled': cancelled,
-            'today': today_orders,
+            'completed':   completed,
+            'cancelled':   cancelled,
+            'today':       today_orders,
         },
-        'revenue': round(revenue, 2),
+        'revenue':   round(revenue, 2),
         'customers': total_customers,
-        'vehicles': total_vehicles,
+        'vehicles':  total_vehicles,
     })
+
+

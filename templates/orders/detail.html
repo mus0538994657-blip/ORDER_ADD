@@ -16,6 +16,189 @@
 </div>
 
 <div class="row g-4">
+
+  <!-- بيانات العميل -->
+  <div class="col-12 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-person-fill me-1"></i>بيانات العميل
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-4 text-muted">الاسم</dt>
+          <dd class="col-8 fw-semibold">
+            {% if order.customer %}
+              <a href="{{ url_for('customers_bp.view_customer', cust_id=order.customer.id) }}"
+                 class="text-decoration-none">{{ order.customer.name }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-4 text-muted">الهاتف</dt>
+          <dd class="col-8">
+            {% if order.customer and order.customer.phone %}
+              <a href="tel:{{ order.customer.phone }}">{{ order.customer.phone }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-4 text-muted">البريد</dt>
+          <dd class="col-8">{{ order.customer.email if order.customer else '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- بيانات المركبة -->
+  <div class="col-12 col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-car-front me-1"></i>بيانات المركبة
+      </div>
+      <div class="card-body">
+        {% if order.vehicle %}
+        <dl class="row mb-0">
+          <dt class="col-4 text-muted">الماركة</dt>  <dd class="col-8">{{ order.vehicle.make or '—' }}</dd>
+          <dt class="col-4 text-muted">الموديل</dt>  <dd class="col-8">{{ order.vehicle.model or '—' }}</dd>
+          <dt class="col-4 text-muted">سنة الصنع</dt><dd class="col-8">{{ order.vehicle.year or '—' }}</dd>
+          <dt class="col-4 text-muted">اللوحة</dt>
+          <dd class="col-8 fw-semibold"><span class="badge bg-dark">{{ order.vehicle.plate_number or '—' }}</span></dd>
+          <dt class="col-4 text-muted">اللون</dt>    <dd class="col-8">{{ order.vehicle.color or '—' }}</dd>
+        </dl>
+        {% else %}
+        <p class="text-muted mb-0 small">لم يتم تحديد مركبة لهذا الطلب</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول بنود الطلب -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul me-1"></i>بنود الطلب</span>
+        <span class="badge bg-secondary">{{ items|length }} بند</span>
+      </div>
+      <div class="card-body p-0">
+        {% if items %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>كود الصنف</th>
+                <th>اسم الصنف</th>
+                <th>الوصف</th>
+                <th class="text-center">الوحدة</th>
+                <th class="text-center">الكمية</th>
+                <th class="text-end">سعر الوحدة</th>
+                <th class="text-end">الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr>
+                <td class="text-muted small">{{ loop.index }}</td>
+                <td><span class="badge bg-secondary-subtle text-secondary fw-semibold">{{ item.code }}</span></td>
+                <td class="fw-semibold">{{ item.name }}</td>
+                <td class="text-muted small">{{ item.description or '—' }}</td>
+                <td class="text-center">{{ item.unit }}</td>
+                <td class="text-center">{{ item.quantity }}</td>
+                <td class="text-end">{{ '%.2f'|format(item.unit_price) }} ر.س</td>
+                <td class="text-end fw-semibold text-success">{{ '%.2f'|format(item.total) }} ر.س</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr>
+                <td colspan="7" class="text-end fw-bold pe-3">مجموع البنود</td>
+                <td class="text-end fw-bold">{{ '%.2f'|format(order.price) }} ر.س</td>
+              </tr>
+              {% if order.discount > 0 %}
+              <tr>
+                <td colspan="7" class="text-end text-danger pe-3">الخصم</td>
+                <td class="text-end text-danger fw-semibold">− {{ '%.2f'|format(order.discount) }} ر.س</td>
+              </tr>
+              {% endif %}
+              <tr>
+                <td colspan="7" class="text-end fw-bold fs-6 pe-3">الإجمالي النهائي</td>
+                <td class="text-end fw-bold fs-5 text-success">{{ '%.2f'|format(order.final_price) }} ر.س</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-inbox fs-3 d-block mb-1"></i>لا توجد بنود لهذا الطلب
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ملاحظات -->
+  {% if order.notes %}
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold"><i class="bi bi-chat-text me-1"></i>ملاحظات</div>
+      <div class="card-body">{{ order.notes }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- تغيير الحالة السريع -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-arrow-repeat me-1"></i>تغيير الحالة
+      </div>
+      <div class="card-body">
+        <div class="d-flex flex-wrap gap-2" id="status-buttons">
+          {% for status in config.ORDER_STATUSES %}
+          <button class="btn btn-sm status-btn
+            {% if status == order.status %}btn-{{ order.status_color }}
+            {% else %}btn-outline-secondary{% endif %}"
+            data-status="{{ status }}"
+            {% if status == order.status %}disabled{% endif %}>
+            {{ status }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.status-btn:not([disabled])').forEach(btn => {
+  btn.addEventListener('click', function () {
+    fetch('{{ url_for("orders_bp.update_status", order_id=order.id) }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}' },
+      body: JSON.stringify({ status: this.dataset.status })
+    })
+    .then(r => r.json())
+    .then(data => { if (data.success) location.reload(); });
+  });
+});
+</script>
+{% endblock %}
+
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right"></i>
+  </a>
+  <h2 class="fw-bold mb-0 me-auto">طلب رقم: {{ order.order_number }}</h2>
+  <span class="badge bg-{{ order.status_color }}-subtle text-{{ order.status_color }} border border-{{ order.status_color }} fs-6">
+    <i class="bi {{ order.status_icon }} me-1"></i>{{ order.status }}
+  </span>
+  <a href="{{ url_for('orders_bp.edit_order', order_id=order.id) }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-pencil me-1"></i>تعديل
+  </a>
+</div>
+
+<div class="row g-4">
   <!-- بيانات العميل -->
   <div class="col-12 col-md-6">
     <div class="card border-0 shadow-sm h-100">
@@ -82,7 +265,7 @@
       <div class="card-body">
         <div class="row g-3">
           <div class="col-6 col-md-3 text-center">
-            <div class="text-muted small">نوع الخدمة</div>
+            <div class="text-muted small">الصنف</div>
             <div class="fw-semibold">{{ order.category.name if order.category else '—' }}</div>
           </div>
           <div class="col-6 col-md-3 text-center">

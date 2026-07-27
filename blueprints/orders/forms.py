@@ -1,13 +1,15 @@
 from flask_wtf import FlaskForm
 from wtforms import (
     SelectField, FloatField, TextAreaField,
-    SubmitField, HiddenField,
+    SubmitField,
 )
 from wtforms.validators import DataRequired, Optional, NumberRange
 
 
 class OrderForm(FlaskForm):
-    """نموذج إضافة/تعديل الطلب — يختار العميل والمركبة من قوائم."""
+    """نموذج إضافة/تعديل الطلب.
+    البنود (items) تُرسل عبر حقل hidden items_json — لا تُعالَج هنا.
+    """
 
     customer_id = SelectField(
         'العميل *',
@@ -20,22 +22,9 @@ class OrderForm(FlaskForm):
         validators=[Optional()],
         default=None,
     )
-    category_id = SelectField(
-        'نوع الخدمة *',
-        coerce=int,
-        validators=[DataRequired(message='يجب اختيار نوع الخدمة')],
-    )
-    price = FloatField(
-        'السعر (ر.س) *',
-        validators=[
-            DataRequired(message='مطلوب'),
-            NumberRange(min=0, message='السعر يجب أن يكون موجباً'),
-        ],
-        default=0.0,
-    )
     discount = FloatField(
         'الخصم (ر.س)',
-        validators=[Optional(), NumberRange(min=0)],
+        validators=[Optional(), NumberRange(min=0, message='الخصم يجب أن يكون موجباً')],
         default=0.0,
     )
     status = SelectField(
@@ -51,11 +40,9 @@ class OrderForm(FlaskForm):
 
     def populate_choices(self, customers, categories, statuses, vehicles=None):
         self.customer_id.choices = [(c.id, f'{c.name} ({c.phone or "—"})') for c in customers]
-        self.category_id.choices = [(c.id, c.name) for c in categories]
-        self.status.choices = [(s, s) for s in statuses]
-        # المركبات: فارغة أولاً، تُملأ بـ AJAX
+        self.status.choices      = [(s, s) for s in statuses]
         v_list = vehicles or []
-        self.vehicle_id.choices = [('0', '— بدون مركبة —')] + [
+        self.vehicle_id.choices  = [('0', '— بدون مركبة —')] + [
             (str(v.id), v.label) for v in v_list
         ]
 
