@@ -13,6 +13,8 @@ class Category(db.Model):
     description   = db.Column(db.String(300), nullable=True)
     unit          = db.Column(db.String(30), nullable=False, default='قطعة')
     default_price = db.Column(db.Float, nullable=False, default=0.0)
+    group_id      = db.Column(db.Integer, db.ForeignKey('category_groups.id', ondelete='SET NULL'),
+                              nullable=True, index=True)
     is_active     = db.Column(db.Boolean, default=True, nullable=False)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -39,6 +41,8 @@ class Category(db.Model):
             'description':   self.description or '',
             'unit':          self.unit,
             'default_price': self.default_price,
+            'group':         self.group.name if self.group else '',
+            'is_active':     self.is_active,
         }
 
     def __repr__(self) -> str:

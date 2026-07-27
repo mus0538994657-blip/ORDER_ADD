@@ -1,0 +1,147 @@
+﻿{% extends 'base.html' %}
+{% block title %}الوحدات — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('categories_bp.list_categories') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right"></i>
+  </a>
+  <h2 class="fw-bold mb-0"><i class="bi bi-rulers text-primary me-2"></i>إدارة الوحدات</h2>
+</div>
+
+<div class="row g-4">
+
+  <!-- نموذج الإضافة -->
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-plus-circle me-1 text-success"></i>إضافة وحدة جديدة
+      </div>
+      <div class="card-body">
+        <form method="POST" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.name.label(class='form-label fw-semibold') }}
+            {{ form.name(class='form-control' + (' is-invalid' if form.name.errors else ''),
+                         placeholder='مثال: قطعة') }}
+            {% for e in form.name.errors %}
+            <div class="invalid-feedback">{{ e }}</div>
+            {% endfor %}
+          </div>
+          <div class="mb-3">
+            <div class="form-check form-switch">
+              {{ form.is_active(class='form-check-input') }}
+              {{ form.is_active.label(class='form-check-label') }}
+            </div>
+          </div>
+          {{ form.submit(class='btn btn-success w-100') }}
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول الوحدات -->
+  <div class="col-12 col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-semibold d-flex justify-content-between">
+        <span>الوحدات المتاحة</span>
+        <span class="badge bg-secondary">{{ units|length }}</span>
+      </div>
+      {% if units %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th>الوحدة</th>
+              <th class="text-center">الحالة</th>
+              <th class="text-center" style="width:160px">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for unit in units %}
+            <tr>
+              <td class="text-muted small">{{ loop.index }}</td>
+              <td>
+                <!-- نموذج التعديل المدمج -->
+                <form method="POST"
+                      action="{{ url_for('categories_bp.edit_unit', unit_id=unit.id) }}"
+                      class="d-flex align-items-center gap-2 edit-form-{{ unit.id }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="text" name="name" value="{{ unit.name }}"
+                         class="form-control form-control-sm edit-input"
+                         style="max-width:140px" readonly>
+                  <input type="checkbox" name="is_active" class="d-none"
+                         {% if unit.is_active %}checked{% endif %}>
+                </form>
+              </td>
+              <td class="text-center">
+                {% if unit.is_active %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">نشطة</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border">معطّلة</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <!-- زر التعديل -->
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        onclick="enableEdit({{ unit.id }}, {{ unit.is_active | tojson }})"
+                        id="btn-edit-{{ unit.id }}" title="تعديل">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <!-- زر الحفظ (مخفي) -->
+                <button type="submit" form="edit-form-{{ unit.id }}" 
+                        class="btn btn-sm btn-success d-none"
+                        id="btn-save-{{ unit.id }}" title="حفظ">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+                <!-- حذف -->
+                <form method="POST"
+                      action="{{ url_for('categories_bp.delete_unit', unit_id=unit.id) }}"
+                      class="d-inline"
+                      onsubmit="return confirm('حذف الوحدة \'{{ unit.name }}\'؟')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-center text-muted py-4">
+        <i class="bi bi-rulers fs-3 d-block mb-2 opacity-50"></i>لا توجد وحدات بعد
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function enableEdit(unitId, isActive) {
+  const form   = document.querySelector('.edit-form-' + unitId);
+  const input  = form.querySelector('.edit-input');
+  const cbx    = form.querySelector('input[type=checkbox]');
+  const btnEdit = document.getElementById('btn-edit-' + unitId);
+  const btnSave = document.getElementById('btn-save-' + unitId);
+
+  input.removeAttribute('readonly');
+  input.focus();
+  input.select();
+
+  // أضف checkbox الحالة كـ visible toggle
+  cbx.checked = isActive;
+  btnEdit.classList.add('d-none');
+  btnSave.classList.remove('d-none');
+
+  // اربط form بالـ id الصحيح
+  form.id = 'edit-form-' + unitId;
+}
+</script>
+{% endblock %}

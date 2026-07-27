@@ -21,6 +21,7 @@ def create_app(config_name: str = None) -> Flask:
     # تهيئة قاعدة البيانات والبذر عند أول تشغيل
     with app.app_context():
         db.create_all()
+        _apply_incremental_migrations()
         from seeds import run_seeds
         run_seeds()
 
@@ -30,6 +31,23 @@ def create_app(config_name: str = None) -> Flask:
 # ---------------------------------------------------------------------------
 # تهيئة الإضافات
 # ---------------------------------------------------------------------------
+
+def _apply_incremental_migrations() -> None:
+    """يضيف أعمدة جديدة للجداول الموجودة بدون حذف البيانات."""
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+
+    # categories: أضف group_id إذا لم يكن موجوداً
+    if 'categories' in inspector.get_table_names():
+        cols = {c['name'] for c in inspector.get_columns('categories')}
+        with db.engine.connect() as conn:
+            if 'group_id' not in cols:
+                conn.execute(text(
+                    'ALTER TABLE categories ADD COLUMN group_id INTEGER '
+                    'REFERENCES category_groups(id) ON DELETE SET NULL'
+                ))
+                conn.commit()
+
 
 def _init_extensions(app: Flask) -> None:
     db.init_app(app)
