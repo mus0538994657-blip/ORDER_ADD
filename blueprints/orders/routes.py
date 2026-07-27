@@ -379,7 +379,7 @@ def export_excel():
 @orders_bp.route('/<int:order_id>/export/pdf')
 @login_required
 def export_order_pdf(order_id):
-    from utils.pdf import generate_order_pdf
+    from utils.pdf_order import generate_order_pdf
     order = Order.query.get_or_404(order_id)
     items = order.items.all()
     workshop_name = current_app.config.get('WORKSHOP_NAME', 'ورشة الزجاج')
