@@ -141,7 +141,7 @@
 
 body {
   font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
-  font-size: 0.95rem;
+  font-size: 12px;
   line-height: 1.65;
   background-color: var(--ab-secondary-neutral);
   color: var(--ab-text-primary);
@@ -150,11 +150,12 @@ body {
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: 'IBM Plex Sans Arabic', 'Segoe UI', system-ui, sans-serif;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--ab-text-primary);
 }
 
@@ -165,6 +166,22 @@ p, span, a, label, button, input, select, textarea, td, th, li {
 main {
   flex: 1;
 }
+
+/* ================================================================
+   تخطيط الصفحة — Header كامل العرض، المحتوى بهامش 100px
+   ================================================================ */
+.page-body {
+  padding-left: 100px;
+  padding-right: 100px;
+}
+
+@media (max-width: 1199px) {
+  .page-body { padding-left: 48px; padding-right: 48px; }
+}
+@media (max-width: 767px) {
+  .page-body { padding-left: 12px; padding-right: 12px; }
+}
+
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -202,7 +219,7 @@ main {
    ================================================================ */
 .card {
   border: 1px solid var(--ab-natural-outline);
-  border-radius: 0.875rem;
+  border-radius: 0px;
   background: var(--ab-white);
   transition: box-shadow var(--transition), transform var(--transition);
 }
@@ -470,10 +487,74 @@ footer a {
   box-shadow: 0 20px 60px rgba(0,0,0,.25);
 }
 
+
 /* ================================================================
-   Responsive
+   Dashboard — بطاقات الإحصائيات المتطورة
    ================================================================ */
-@media (max-width: 576px) {
+.kpi-card {
+  border: none;
+  border-radius: 0;
+  border-right: 4px solid var(--ab-primary);
+  background: var(--ab-white);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+.kpi-card:hover { box-shadow: 0 8px 28px var(--ab-grey-20) !important; }
+
+.kpi-card .kpi-icon {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; flex-shrink: 0;
+}
+.kpi-card .kpi-value { font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.kpi-card .kpi-label { font-size: 0.78rem; color: var(--ab-text-secondary); font-weight: 500; margin-top: 2px; }
+.kpi-card .kpi-delta { font-size: 0.72rem; font-weight: 600; }
+
+.kpi-card.kpi-primary  { border-right-color: var(--ab-primary); }
+.kpi-card.kpi-warning  { border-right-color: var(--ab-system-warning-dark); }
+.kpi-card.kpi-info     { border-right-color: #0dcaf0; }
+.kpi-card.kpi-success  { border-right-color: var(--ab-system-success); }
+.kpi-card.kpi-danger   { border-right-color: var(--ab-system-error); }
+.kpi-card.kpi-revenue  { border-right-color: var(--ab-primary-800); }
+
+.kpi-card .kpi-icon.bg-primary-soft  { background: var(--ab-primary-8);           color: var(--ab-primary); }
+.kpi-card .kpi-icon.bg-warning-soft  { background: var(--ab-system-warning-8);    color: var(--ab-system-warning-dark); }
+.kpi-card .kpi-icon.bg-info-soft     { background: rgba(13,202,240,.1);            color: #0dcaf0; }
+.kpi-card .kpi-icon.bg-success-soft  { background: var(--ab-system-success-8);    color: var(--ab-system-success); }
+.kpi-card .kpi-icon.bg-danger-soft   { background: var(--ab-system-error-8);      color: var(--ab-system-error); }
+
+/* Quick Action Cards */
+.quick-action {
+  text-decoration: none;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; padding: 20px 12px;
+  border: 1px solid var(--ab-natural-outline);
+  background: var(--ab-white);
+  color: var(--ab-text-primary);
+  transition: all var(--transition);
+  min-height: 90px;
+}
+.quick-action:hover {
+  background: var(--ab-primary-xlight);
+  border-color: var(--ab-primary);
+  color: var(--ab-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px var(--ab-primary-1010);
+}
+.quick-action i { font-size: 1.6rem; }
+.quick-action span { font-size: 0.8rem; font-weight: 600; text-align: center; }
+
+/* Status Progress Bar */
+.status-progress-item {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+}
+.status-progress-item .label { width: 110px; font-size: 0.78rem; font-weight: 500; flex-shrink: 0; }
+.status-progress-item .bar-wrap { flex: 1; background: var(--ab-grey-100); border-radius: 100px; height: 8px; }
+.status-progress-item .bar { border-radius: 100px; height: 8px; transition: width 0.4s ease; }
+.status-progress-item .count { width: 32px; text-align: end; font-size: 0.78rem; font-weight: 700; }
+
+
   .display-1 { font-size: 3.5rem; }
   h2 { font-size: 1.35rem; }
   .table-responsive-sm { font-size: 0.85rem; }
