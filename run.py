@@ -9,10 +9,10 @@ if __name__ == '__main__':
     debug = app.config.get('DEBUG', False)
 
     print("=" * 50)
-    print("🚗  نظام إدارة ورشة تركيب زجاج المركبات")
+    print("  نظام ادارة ورشة تركيب زجاج المركبات")
     print("=" * 50)
-    print(f"🌐  http://{host}:{port}")
-    print("👤  المستخدم: admin  |  🔑  كلمة المرور: admin123")
+    print(f"  http://{host}:{port}")
+    print("  admin / Admin@1234")
     print("=" * 50)
 
     app.run(host=host, port=port, debug=debug)
