@@ -6,6 +6,12 @@ from wtforms import (
 from wtforms.validators import DataRequired, Optional, NumberRange
 
 
+class DynamicSelectField(SelectField):
+    """SelectField يتخطى التحقق من الخيارات — للقوائم المُحمَّلة بـ AJAX."""
+    def pre_validate(self, form):
+        pass
+
+
 class OrderForm(FlaskForm):
     """نموذج إضافة/تعديل الطلب.
     البنود (items) تُرسل عبر حقل hidden items_json — لا تُعالَج هنا.
@@ -16,9 +22,10 @@ class OrderForm(FlaskForm):
         coerce=int,
         validators=[DataRequired(message='يجب اختيار العميل')],
     )
-    vehicle_id = SelectField(
+    # vehicle_id يُحمَّل عبر AJAX → نستخدم DynamicSelectField لتجاوز choices validation
+    vehicle_id = DynamicSelectField(
         'المركبة',
-        coerce=lambda x: int(x) if x and str(x) != '0' else None,
+        coerce=lambda x: int(x) if x and str(x) not in ('0', '') else None,
         validators=[Optional()],
         default=None,
     )
