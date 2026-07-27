@@ -172,7 +172,7 @@
 
 {% block extra_js %}
 <script>
-const CATEGORIES   = {{ categories_json }};
+const CATEGORIES   = {{ categories_json | safe }};
 const EXISTING     = {{ existing_items | tojson }};
 const CSRF_TOKEN   = '{{ csrf_token() }}';
 const CUST_ID      = {{ preselect_customer_id | tojson }};
