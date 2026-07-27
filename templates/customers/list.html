@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}العملاء — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>العملاء</h2>
+  <a href="{{ url_for('customers_bp.add_customer') }}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>عميل جديد
+  </a>
+</div>
+
+<!-- بحث -->
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-12 col-md-6">
+        <input type="search" name="q" class="form-control form-control-sm"
+               placeholder="بحث بالاسم أو الهاتف أو البريد..."
+               value="{{ search }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-search"></i> بحث
+        </button>
+        {% if search %}
+        <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x-circle"></i>
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- الجدول -->
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    {% if customers %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>الاسم</th>
+            <th>الهاتف</th>
+            <th>البريد</th>
+            <th class="text-center">المركبات</th>
+            <th class="text-center">الطلبات</th>
+            <th>الحالة</th>
+            <th class="text-center">إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in customers %}
+          <tr>
+            <td>
+              <a href="{{ url_for('customers_bp.view_customer', cust_id=c.id) }}"
+                 class="fw-semibold text-decoration-none">
+                <i class="bi bi-person-circle text-muted me-1"></i>{{ c.name }}
+              </a>
+            </td>
+            <td>{{ c.phone or '—' }}</td>
+            <td class="text-muted small">{{ c.email or '—' }}</td>
+            <td class="text-center">
+              <span class="badge bg-info-subtle text-info border border-info">
+                {{ c.vehicles_count }}
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-primary-subtle text-primary border border-primary">
+                {{ c.orders_count }}
+              </span>
+            </td>
+            <td>
+              {% if c.is_active %}
+                <span class="badge bg-success-subtle text-success border border-success">نشط</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary">معطّل</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{{ url_for('customers_bp.view_customer', cust_id=c.id) }}"
+                   class="btn btn-outline-secondary" title="عرض">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{{ url_for('customers_bp.edit_customer', cust_id=c.id) }}"
+                   class="btn btn-outline-primary" title="تعديل">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <a href="{{ url_for('orders_bp.add_order') }}?customer_id={{ c.id }}"
+                   class="btn btn-outline-success" title="طلب جديد">
+                  <i class="bi bi-plus-circle"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-people fs-1"></i>
+      <p class="mt-2">لا يوجد عملاء مطابقون</p>
+      {% if not search %}
+        <a href="{{ url_for('customers_bp.add_customer') }}" class="btn btn-primary btn-sm">أضف أول عميل</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

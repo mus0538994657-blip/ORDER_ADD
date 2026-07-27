@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }} — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary btn-sm me-3">
+    <i class="bi bi-arrow-right"></i>
+  </a>
+  <h2 class="fw-bold mb-0">{{ title }}</h2>
+</div>
+
+<form method="POST" novalidate id="order-form">
+  {{ form.hidden_tag() }}
+  {# البنود تُرسل كـ JSON في هذا الحقل #}
+  <input type="hidden" id="items-json" name="items_json" value="">
+
+  <div class="row g-4">
+
+    <!-- ===== العمود الرئيسي ===== -->
+    <div class="col-12 col-xl-8">
+
+      <!-- اختيار العميل والمركبة -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header">
+          <i class="bi bi-person-fill me-1"></i>العميل والمركبة
+        </div>
+        <div class="card-body p-4">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              {{ form.customer_id.label(class='form-label') }}
+              {{ form.customer_id(class='form-select' + (' is-invalid' if form.customer_id.errors else ''), id='customer-select') }}
+              {% for e in form.customer_id.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+              <a href="{{ url_for('customers_bp.add_customer') }}" target="_blank" class="small text-primary mt-1 d-inline-block">
+                <i class="bi bi-plus-circle me-1"></i>إضافة عميل جديد
+              </a>
+            </div>
+            <div class="col-12 col-md-6">
+              {{ form.vehicle_id.label(class='form-label') }}
+              <select class="form-select" id="vehicle-select" name="vehicle_id">
+                <option value="0">— اختر عميلاً أولاً —</option>
+                {% for val, label in form.vehicle_id.choices %}
+                <option value="{{ val }}" {% if form.vehicle_id.data|string == val|string %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <div id="vehicle-loading" class="small text-muted mt-1 d-none">
+                <span class="spinner-border spinner-border-sm me-1"></span>جاري التحميل...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- جدول البنود -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-list-ul me-1"></i>بنود الطلب</span>
+          <button type="button" class="btn btn-primary btn-sm" id="btn-add-row">
+            <i class="bi bi-plus-lg me-1"></i>إضافة بند
+          </button>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" id="items-table">
+              <thead>
+                <tr>
+                  <th style="width:120px">كود الصنف</th>
+                  <th style="width:160px">اسم الصنف</th>
+                  <th>الوصف</th>
+                  <th style="width:90px">الوحدة</th>
+                  <th style="width:80px">الكمية</th>
+                  <th style="width:110px">سعر الوحدة</th>
+                  <th style="width:110px">الإجمالي</th>
+                  <th style="width:50px"></th>
+                </tr>
+              </thead>
+              <tbody id="items-body">
+                <!-- الصفوف تُضاف بـ JS -->
+              </tbody>
+              <tfoot>
+                <tr class="table-light fw-bold">
+                  <td colspan="6" class="text-end pe-3">مجموع البنود</td>
+                  <td id="items-subtotal" class="text-success">0.00 ر.س</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div id="items-empty" class="text-center text-muted py-4 d-none">
+            <i class="bi bi-inbox fs-3 d-block mb-1"></i>لا توجد بنود — اضغط "إضافة بند"
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col main -->
+
+    <!-- ===== العمود الجانبي ===== -->
+    <div class="col-12 col-xl-4">
+
+      <!-- الحالة والخصم -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-sliders me-1"></i>إعدادات الطلب</div>
+        <div class="card-body p-4">
+          <div class="mb-3">
+            {{ form.status.label(class='form-label') }}
+            {{ form.status(class='form-select' + (' is-invalid' if form.status.errors else '')) }}
+            {% for e in form.status.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            {{ form.discount.label(class='form-label') }}
+            <div class="input-group">
+              {{ form.discount(class='form-control' + (' is-invalid' if form.discount.errors else ''), id='discount-field', step='0.01') }}
+              <span class="input-group-text">ر.س</span>
+            </div>
+            {% for e in form.discount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-0">
+            {{ form.notes.label(class='form-label') }}
+            {{ form.notes(class='form-control') }}
+          </div>
+        </div>
+      </div>
+
+      <!-- ملخص المبالغ -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header"><i class="bi bi-calculator me-1"></i>ملخص المبلغ</div>
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">مجموع البنود</span>
+            <span id="summary-subtotal" class="fw-semibold">0.00 ر.س</span>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">الخصم</span>
+            <span id="summary-discount" class="text-danger">0.00 ر.س</span>
+          </div>
+          <hr class="my-2">
+          <div class="d-flex justify-content-between">
+            <span class="fw-bold">الإجمالي</span>
+            <span id="summary-total" class="fw-bold text-success fs-5">0.00 ر.س</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- أزرار الحفظ -->
+      <div class="d-grid gap-2">
+        {{ form.submit(class='btn btn-primary btn-lg') }}
+        <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary">إلغاء</a>
+      </div>
+
+    </div><!-- /col side -->
+
+  </div><!-- /row -->
+</form>
+
+<!-- Modal: البحث بكود الصنف -->
+<div class="modal fade" id="modal-code-search" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold">بحث بكود الصنف</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="modal-code-input" class="form-control"
+               placeholder="GLS-001 أو اسم الصنف..." autocomplete="off">
+        <div id="modal-code-results" class="list-group mt-2"></div>
+        <div id="modal-code-error" class="text-danger small mt-1 d-none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CATEGORIES   = {{ categories_json | safe }};
+const EXISTING     = {{ existing_items | tojson }};
+const CSRF_TOKEN   = '{{ csrf_token() }}';
+const CUST_ID      = {{ preselect_customer_id | tojson }};
+const API_VEHICLES = '/api/v1/customers/';
+const API_SEARCH   = '/api/v1/categories/search';
+
+// -----------------------------------------------------------------------
+// جدول البنود
+// -----------------------------------------------------------------------
+let rowIndex = 0;
+
+function fmt(n) { return parseFloat(n || 0).toFixed(2); }
+
+function addRow(data = {}) {
+  const idx   = rowIndex++;
+  const tbody = document.getElementById('items-body');
+  const tr    = document.createElement('tr');
+  tr.dataset.idx = idx;
+
+  tr.innerHTML = `
+    <td>
+      <div class="input-group input-group-sm">
+        <input type="text" class="form-control field-code" placeholder="GLS-001"
+               value="${escHtml(data.code || '')}" style="min-width:70px">
+        <button type="button" class="btn btn-outline-secondary btn-search-code" title="بحث">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+    </td>
+    <td><input type="text" class="form-control form-control-sm field-name"
+              placeholder="اسم الصنف" value="${escHtml(data.name || '')}"></td>
+    <td><input type="text" class="form-control form-control-sm field-desc"
+              placeholder="وصف" value="${escHtml(data.description || '')}"></td>
+    <td><input type="text" class="form-control form-control-sm field-unit"
+              value="${escHtml(data.unit || 'قطعة')}" style="width:80px"></td>
+    <td><input type="number" class="form-control form-control-sm field-qty"
+              value="${fmt(data.quantity || 1)}" min="0.01" step="0.01" style="width:70px"></td>
+    <td><input type="number" class="form-control form-control-sm field-price"
+              value="${fmt(data.unit_price || 0)}" min="0" step="0.01" style="width:90px"></td>
+    <td><span class="field-total fw-semibold text-success">${fmt(data.total || 0)} ر.س</span>
+        <input type="hidden" class="field-cat-id" value="${data.category_id || ''}">
+    </td>
+    <td>
+      <button type="button" class="btn btn-outline-danger btn-sm btn-remove-row">
+        <i class="bi bi-trash"></i>
+      </button>
+    </td>`;
+
+  tbody.appendChild(tr);
+  attachRowEvents(tr);
+  refreshSummary();
+  toggleEmpty();
+}
+
+function attachRowEvents(tr) {
+  const qtyEl   = tr.querySelector('.field-qty');
+  const priceEl = tr.querySelector('.field-price');
+  const totalEl = tr.querySelector('.field-total');
+
+  function calcRow() {
+    const t = parseFloat(qtyEl.value || 0) * parseFloat(priceEl.value || 0);
+    totalEl.textContent = fmt(t) + ' ر.س';
+    refreshSummary();
+  }
+  qtyEl.addEventListener('input', calcRow);
+  priceEl.addEventListener('input', calcRow);
+
+  // زر البحث بكود
+  tr.querySelector('.btn-search-code').addEventListener('click', function () {
+    openCodeModal(tr);
+  });
+
+  // عند تغيير الكود يدوياً — بحث تلقائي عند الخروج
+  tr.querySelector('.field-code').addEventListener('blur', function () {
+    const code = this.value.trim().toUpperCase();
+    if (!code) return;
+    fetchByCode(code, tr);
+  });
+
+  // حذف الصف
+  tr.querySelector('.btn-remove-row').addEventListener('click', function () {
+    tr.remove();
+    refreshSummary();
+    toggleEmpty();
+  });
+}
+
+function fetchByCode(code, tr) {
+  fetch(`${API_SEARCH}?code=${encodeURIComponent(code)}`, {
+    headers: { 'X-CSRFToken': CSRF_TOKEN }
+  })
+  .then(r => r.ok ? r.json() : null)
+  .then(cat => { if (cat && cat.id) fillRow(tr, cat); })
+  .catch(() => {});
+}
+
+function fillRow(tr, cat) {
+  tr.querySelector('.field-code').value  = cat.code;
+  tr.querySelector('.field-name').value  = cat.name;
+  tr.querySelector('.field-desc').value  = cat.description || '';
+  tr.querySelector('.field-unit').value  = cat.unit || 'قطعة';
+  tr.querySelector('.field-cat-id').value = cat.id;
+  const priceEl = tr.querySelector('.field-price');
+  if (!priceEl.value || parseFloat(priceEl.value) === 0) {
+    priceEl.value = fmt(cat.default_price);
+  }
+  const qtyEl   = tr.querySelector('.field-qty');
+  const totalEl = tr.querySelector('.field-total');
+  totalEl.textContent = fmt(parseFloat(qtyEl.value) * parseFloat(priceEl.value)) + ' ر.س';
+  refreshSummary();
+}
+
+function refreshSummary() {
+  let sub = 0;
+  document.querySelectorAll('#items-body tr').forEach(tr => {
+    const qty   = parseFloat(tr.querySelector('.field-qty')?.value || 0);
+    const price = parseFloat(tr.querySelector('.field-price')?.value || 0);
+    sub += qty * price;
+  });
+  const disc  = parseFloat(document.getElementById('discount-field').value || 0);
+  const total = Math.max(0, sub - disc);
+
+  document.getElementById('items-subtotal').textContent    = fmt(sub)   + ' ر.س';
+  document.getElementById('summary-subtotal').textContent  = fmt(sub)   + ' ر.س';
+  document.getElementById('summary-discount').textContent  = fmt(disc)  + ' ر.س';
+  document.getElementById('summary-total').textContent     = fmt(total) + ' ر.س';
+}
+
+function toggleEmpty() {
+  const empty  = document.getElementById('items-empty');
+  const hasRows = document.querySelectorAll('#items-body tr').length > 0;
+  empty.classList.toggle('d-none', hasRows);
+  document.querySelector('#items-table thead').classList.toggle('d-none', !hasRows);
+  document.querySelector('#items-table tfoot').classList.toggle('d-none', !hasRows);
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// -----------------------------------------------------------------------
+// Modal: البحث بكود الصنف
+// -----------------------------------------------------------------------
+let _activeRow = null;
+
+function openCodeModal(tr) {
+  _activeRow = tr;
+  const input   = document.getElementById('modal-code-input');
+  const results = document.getElementById('modal-code-results');
+  const errEl   = document.getElementById('modal-code-error');
+
+  // استخدم الكود الحالي كقيمة أولية
+  input.value = tr.querySelector('.field-code').value || '';
+  results.innerHTML = '';
+  errEl.classList.add('d-none');
+
+  new bootstrap.Modal(document.getElementById('modal-code-search')).show();
+  setTimeout(() => input.focus(), 300);
+}
+
+document.getElementById('modal-code-input').addEventListener('input', function () {
+  const q       = this.value.trim();
+  const results = document.getElementById('modal-code-results');
+  const errEl   = document.getElementById('modal-code-error');
+  results.innerHTML = '';
+  errEl.classList.add('d-none');
+  if (q.length < 1) return;
+
+  fetch(`${API_SEARCH}?q=${encodeURIComponent(q)}`, {
+    headers: { 'X-CSRFToken': CSRF_TOKEN }
+  })
+  .then(r => r.json())
+  .then(data => {
+    const list = Array.isArray(data) ? data : (data.error ? [] : [data]);
+    if (list.length === 0) {
+      errEl.textContent = 'لا توجد نتائج';
+      errEl.classList.remove('d-none');
+      return;
+    }
+    list.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'list-group-item list-group-item-action py-2';
+      btn.innerHTML = `<strong>${escHtml(cat.code)}</strong> — ${escHtml(cat.name)}
+        <small class="text-muted d-block">${escHtml(cat.unit)} | ${parseFloat(cat.default_price).toFixed(2)} ر.س</small>`;
+      btn.addEventListener('click', () => {
+        if (_activeRow) fillRow(_activeRow, cat);
+        bootstrap.Modal.getInstance(document.getElementById('modal-code-search')).hide();
+      });
+      results.appendChild(btn);
+    });
+  })
+  .catch(() => {});
+});
+
+// -----------------------------------------------------------------------
+// AJAX: تحميل مركبات العميل
+// -----------------------------------------------------------------------
+function loadVehicles(customerId, selectedId = null) {
+  if (!customerId || customerId == 0) return;
+  const loading = document.getElementById('vehicle-loading');
+  const select  = document.getElementById('vehicle-select');
+  loading.classList.remove('d-none');
+  select.disabled = true;
+
+  fetch(API_VEHICLES + customerId + '/vehicles', {
+    headers: { 'X-CSRFToken': CSRF_TOKEN }
+  })
+  .then(r => r.json())
+  .then(vehicles => {
+    select.innerHTML = '<option value="0">— بدون مركبة —</option>';
+    vehicles.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value       = v.id;
+      opt.textContent = v.label;
+      if (selectedId && v.id == selectedId) opt.selected = true;
+      select.appendChild(opt);
+    });
+  })
+  .catch(() => {})
+  .finally(() => {
+    loading.classList.add('d-none');
+    select.disabled = false;
+  });
+}
+
+document.getElementById('customer-select').addEventListener('change', function () {
+  loadVehicles(this.value);
+});
+
+// -----------------------------------------------------------------------
+// تسلسل البنود قبل الإرسال
+// -----------------------------------------------------------------------
+document.getElementById('order-form').addEventListener('submit', function (e) {
+  const rows = [];
+  document.querySelectorAll('#items-body tr').forEach(tr => {
+    rows.push({
+      category_id: tr.querySelector('.field-cat-id').value || null,
+      code:        tr.querySelector('.field-code').value.trim(),
+      name:        tr.querySelector('.field-name').value.trim(),
+      description: tr.querySelector('.field-desc').value.trim(),
+      unit:        tr.querySelector('.field-unit').value.trim() || 'قطعة',
+      quantity:    parseFloat(tr.querySelector('.field-qty').value || 1),
+      unit_price:  parseFloat(tr.querySelector('.field-price').value || 0),
+    });
+  });
+  if (rows.length === 0) {
+    e.preventDefault();
+    alert('يجب إضافة بند واحد على الأقل');
+    return;
+  }
+  document.getElementById('items-json').value = JSON.stringify(rows);
+});
+
+document.getElementById('discount-field').addEventListener('input', refreshSummary);
+
+// -----------------------------------------------------------------------
+// تهيئة عند تحميل الصفحة
+// -----------------------------------------------------------------------
+window.addEventListener('DOMContentLoaded', function () {
+  const custId  = document.getElementById('customer-select').value;
+  const vehId   = document.getElementById('vehicle-select').value;
+  if (custId && custId != 0) loadVehicles(custId, vehId);
+
+  // تحميل البنود الموجودة (تعديل)
+  if (EXISTING && EXISTING.length > 0) {
+    EXISTING.forEach(item => addRow(item));
+  }
+
+  toggleEmpty();
+  refreshSummary();
+});
+
+document.getElementById('btn-add-row').addEventListener('click', () => addRow());
+</script>
+{% endblock %}
+

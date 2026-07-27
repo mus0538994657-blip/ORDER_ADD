@@ -1,0 +1,127 @@
+﻿{% extends 'base.html' %}
+{% block title %}{{ title }} — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('categories_bp.list_categories') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right"></i>
+  </a>
+  <h2 class="fw-bold mb-0">{{ title }}</h2>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body p-4">
+        <form method="POST" novalidate>
+          {{ form.hidden_tag() }}
+
+          <!-- الصف الأول: الكود + الاسم -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-4">
+              {{ form.code.label(class='form-label fw-semibold') }}
+              {{ form.code(class='form-control' + (' is-invalid' if form.code.errors else ''),
+                           placeholder='GLS-001') }}
+              {% for e in form.code.errors %}
+              <div class="invalid-feedback">{{ e }}</div>
+              {% endfor %}
+              <div class="form-text">يُحوَّل تلقائياً لأحرف كبيرة</div>
+            </div>
+            <div class="col-12 col-sm-8">
+              {{ form.name.label(class='form-label fw-semibold') }}
+              {{ form.name(class='form-control' + (' is-invalid' if form.name.errors else '')) }}
+              {% for e in form.name.errors %}
+              <div class="invalid-feedback">{{ e }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- الوصف -->
+          <div class="mb-3">
+            {{ form.description.label(class='form-label fw-semibold') }}
+            {{ form.description(class='form-control' + (' is-invalid' if form.description.errors else '')) }}
+            {% for e in form.description.errors %}
+            <div class="invalid-feedback">{{ e }}</div>
+            {% endfor %}
+          </div>
+
+          <!-- التصنيف + الوحدة -->
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-sm-6">
+              {{ form.group_id.label(class='form-label fw-semibold') }}
+              {{ form.group_id(class='form-select' + (' is-invalid' if form.group_id.errors else '')) }}
+              {% for e in form.group_id.errors %}
+              <div class="invalid-feedback">{{ e }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 col-sm-6">
+              {{ form.unit.label(class='form-label fw-semibold') }}
+              <div class="input-group">
+                {{ form.unit(class='form-control' + (' is-invalid' if form.unit.errors else ''),
+                              list='units-list', id='unit-input') }}
+                <datalist id="units-list">
+                  {% for u in units %}
+                  <option value="{{ u.name }}">
+                  {% endfor %}
+                </datalist>
+                <a href="{{ url_for('categories_bp.manage_units') }}"
+                   class="btn btn-outline-secondary" title="إدارة الوحدات" target="_blank">
+                  <i class="bi bi-gear"></i>
+                </a>
+              </div>
+              {% for e in form.unit.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- السعر + الحالة -->
+          <div class="row g-3 mb-4">
+            <div class="col-12 col-sm-6">
+              {{ form.default_price.label(class='form-label fw-semibold') }}
+              <div class="input-group">
+                {{ form.default_price(class='form-control' + (' is-invalid' if form.default_price.errors else ''),
+                                      step='0.01', min='0') }}
+                <span class="input-group-text">ر.س</span>
+              </div>
+              {% for e in form.default_price.errors %}
+              <div class="invalid-feedback d-block">{{ e }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 col-sm-6 d-flex align-items-end pb-2">
+              <div class="form-check form-switch">
+                {{ form.is_active(class='form-check-input') }}
+                {{ form.is_active.label(class='form-check-label fw-semibold') }}
+              </div>
+            </div>
+          </div>
+
+          <!-- أزرار الحفظ -->
+          <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('categories_bp.list_categories') }}" class="btn btn-outline-secondary">إلغاء</a>
+            {{ form.submit(class='btn btn-primary px-4') }}
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('unit-input').addEventListener('input', function () {
+  this.value = this.value.trim();
+});
+// تحويل الكود لأحرف كبيرة عند الكتابة
+const codeField = document.querySelector('[name="code"]');
+if (codeField) {
+  codeField.addEventListener('input', function () {
+    const pos = this.selectionStart;
+    this.value = this.value.toUpperCase();
+    this.setSelectionRange(pos, pos);
+  });
+}
+</script>
+{% endblock %}

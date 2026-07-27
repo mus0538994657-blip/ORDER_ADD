@@ -1,0 +1,312 @@
+﻿{% extends 'base.html' %}
+{% block title %}لوحة التحكم — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+
+<!-- رأس الصفحة -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h2 class="fw-bold mb-0"><i class="bi bi-speedometer2 text-primary me-2"></i>لوحة التحكم</h2>
+    <p class="text-muted small mb-0 mt-1">مرحباً {{ current_user.full_name or current_user.username }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('customers_bp.add_customer') }}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-person-plus me-1"></i>عميل جديد
+    </a>
+    <a href="{{ url_for('orders_bp.add_order') }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>طلب جديد
+    </a>
+  </div>
+</div>
+
+<!-- ===== الصف الأول: KPI رئيسية ===== -->
+<div class="row g-3 mb-4">
+
+  <!-- إجمالي الطلبات -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card kpi-card kpi-primary h-100">
+      <div class="card-body d-flex align-items-center gap-3 p-3">
+        <div class="kpi-icon bg-primary-soft"><i class="bi bi-list-ul"></i></div>
+        <div>
+          <div class="kpi-value text-primary">{{ stats.total }}</div>
+          <div class="kpi-label">إجمالي الطلبات</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قيد الانتظار -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card kpi-card kpi-warning h-100">
+      <div class="card-body d-flex align-items-center gap-3 p-3">
+        <div class="kpi-icon bg-warning-soft"><i class="bi bi-clock-history"></i></div>
+        <div>
+          <div class="kpi-value" style="color:var(--ab-system-warning-dark)">{{ stats.pending }}</div>
+          <div class="kpi-label">قيد الانتظار</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قيد التنفيذ -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card kpi-card kpi-info h-100">
+      <div class="card-body d-flex align-items-center gap-3 p-3">
+        <div class="kpi-icon bg-info-soft"><i class="bi bi-gear-fill"></i></div>
+        <div>
+          <div class="kpi-value" style="color:#0dcaf0">{{ stats.in_progress }}</div>
+          <div class="kpi-label">قيد التنفيذ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مكتملة -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card kpi-card kpi-success h-100">
+      <div class="card-body d-flex align-items-center gap-3 p-3">
+        <div class="kpi-icon bg-success-soft"><i class="bi bi-check-circle-fill"></i></div>
+        <div>
+          <div class="kpi-value" style="color:var(--ab-system-success)">{{ stats.completed }}</div>
+          <div class="kpi-label">مكتملة</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ملغية -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card kpi-card kpi-danger h-100">
+      <div class="card-body d-flex align-items-center gap-3 p-3">
+        <div class="kpi-icon bg-danger-soft"><i class="bi bi-x-circle-fill"></i></div>
+        <div>
+          <div class="kpi-value" style="color:var(--ab-system-error)">{{ stats.cancelled }}</div>
+          <div class="kpi-label">ملغية</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الإيرادات -->
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="card kpi-card kpi-revenue h-100">
+      <div class="card-body d-flex align-items-center gap-3 p-3">
+        <div class="kpi-icon bg-primary-soft"><i class="bi bi-cash-stack"></i></div>
+        <div>
+          <div class="kpi-value text-primary" style="font-size:1.15rem">
+            {{ '{:,.0f}'.format(stats.revenue) }}
+          </div>
+          <div class="kpi-label">الإيرادات (ر.س)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== الصف الثاني: إحصائيات سريعة + شريط التوزيع ===== -->
+<div class="row g-3 mb-4">
+
+  <!-- اليوم والأسبوع -->
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-calendar-day text-primary me-1"></i>نشاط اليوم والأسبوع
+      </div>
+      <div class="card-body">
+        <div class="row g-3 text-center">
+          <div class="col-6 border-end">
+            <div class="fs-3 fw-bold text-primary">{{ stats.today_orders }}</div>
+            <div class="text-muted small">طلبات اليوم</div>
+          </div>
+          <div class="col-6">
+            <div class="fs-3 fw-bold text-success">{{ '{:,.0f}'.format(stats.today_revenue) }}</div>
+            <div class="text-muted small">إيرادات اليوم (ر.س)</div>
+          </div>
+          <div class="col-6 border-end">
+            <div class="fs-3 fw-bold" style="color:var(--ab-primary-800)">{{ stats.week_orders }}</div>
+            <div class="text-muted small">طلبات الأسبوع</div>
+          </div>
+          <div class="col-6">
+            <div class="fs-3 fw-bold text-secondary">{{ stats.customers_count }}</div>
+            <div class="text-muted small">عملاء نشطون</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- توزيع الحالات -->
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-pie-chart text-primary me-1"></i>توزيع الحالات
+      </div>
+      <div class="card-body">
+        {% if stats.total > 0 %}
+        <div class="status-progress-item">
+          <span class="label text-warning-emphasis fw-semibold">قيد الانتظار</span>
+          <div class="bar-wrap">
+            <div class="bar bg-warning" style="width:{{ stats.pct_pending }}%"></div>
+          </div>
+          <span class="count text-warning-emphasis">{{ stats.pending }}</span>
+        </div>
+        <div class="status-progress-item">
+          <span class="label text-info-emphasis fw-semibold">قيد التنفيذ</span>
+          <div class="bar-wrap">
+            <div class="bar bg-info" style="width:{{ stats.pct_progress }}%"></div>
+          </div>
+          <span class="count text-info-emphasis">{{ stats.in_progress }}</span>
+        </div>
+        <div class="status-progress-item">
+          <span class="label text-success-emphasis fw-semibold">مكتملة</span>
+          <div class="bar-wrap">
+            <div class="bar bg-success" style="width:{{ stats.pct_completed }}%"></div>
+          </div>
+          <span class="count text-success-emphasis">{{ stats.completed }}</span>
+        </div>
+        <div class="status-progress-item">
+          <span class="label text-danger-emphasis fw-semibold">ملغية</span>
+          <div class="bar-wrap">
+            <div class="bar bg-danger" style="width:{{ stats.pct_cancelled }}%"></div>
+          </div>
+          <span class="count text-danger-emphasis">{{ stats.cancelled }}</span>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-3 small">لا توجد طلبات بعد</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- وصول سريع -->
+  <div class="col-12 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-lightning-charge text-primary me-1"></i>وصول سريع
+      </div>
+      <div class="card-body p-0">
+        <div class="row g-0">
+          <div class="col-4">
+            <a href="{{ url_for('orders_bp.add_order') }}" class="quick-action">
+              <i class="bi bi-plus-circle text-primary"></i>
+              <span>طلب جديد</span>
+            </a>
+          </div>
+          <div class="col-4">
+            <a href="{{ url_for('customers_bp.add_customer') }}" class="quick-action">
+              <i class="bi bi-person-plus text-success"></i>
+              <span>عميل جديد</span>
+            </a>
+          </div>
+          <div class="col-4">
+            <a href="{{ url_for('categories_bp.add_category') }}" class="quick-action">
+              <i class="bi bi-tag-fill text-primary"></i>
+              <span>صنف جديد</span>
+            </a>
+          </div>
+          <div class="col-4">
+            <a href="{{ url_for('orders_bp.list_orders') }}" class="quick-action">
+              <i class="bi bi-list-check text-primary"></i>
+              <span>الطلبات</span>
+            </a>
+          </div>
+          <div class="col-4">
+            <a href="{{ url_for('reports_bp.index') }}" class="quick-action">
+              <i class="bi bi-bar-chart-line text-info"></i>
+              <span>التقارير</span>
+            </a>
+          </div>
+          <div class="col-4">
+            <a href="{{ url_for('customers_bp.list_customers') }}" class="quick-action">
+              <i class="bi bi-people-fill text-secondary"></i>
+              <span>العملاء</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== آخر الطلبات ===== -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span class="fw-semibold">
+      <i class="bi bi-clock-history text-primary me-1"></i>آخر الطلبات
+    </span>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-arrow-left me-1"></i>عرض الكل
+      </a>
+    </div>
+  </div>
+  <div class="card-body p-0">
+    {% if recent_orders %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>رقم الطلب</th>
+            <th>العميل</th>
+            <th class="d-none d-md-table-cell">المركبة</th>
+            <th class="d-none d-lg-table-cell">البنود</th>
+            <th class="text-end">الإجمالي</th>
+            <th class="text-center">الحالة</th>
+            <th class="d-none d-md-table-cell">التاريخ</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in recent_orders %}
+          <tr>
+            <td>
+              <a href="{{ url_for('orders_bp.order_detail', order_id=order.id) }}"
+                 class="badge bg-light text-dark border text-decoration-none fw-semibold">
+                {{ order.order_number }}
+              </a>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ order.customer.name if order.customer else '—' }}</div>
+              <div class="text-muted small">{{ order.customer.phone if order.customer else '' }}</div>
+            </td>
+            <td class="text-muted small d-none d-md-table-cell">{{ order.vehicle_info }}</td>
+            <td class="d-none d-lg-table-cell">
+              <span class="badge bg-secondary-subtle text-secondary">{{ order.items_count }} بند</span>
+            </td>
+            <td class="text-end fw-semibold text-success">
+              {{ '%.2f'|format(order.final_price) }} ر.س
+            </td>
+            <td class="text-center">
+              <span class="badge bg-{{ order.status_color }}-subtle text-{{ order.status_color }} border border-{{ order.status_color }}">
+                <i class="bi {{ order.status_icon }} me-1"></i>{{ order.status }}
+              </span>
+            </td>
+            <td class="text-muted small d-none d-md-table-cell">
+              {{ order.created_at.strftime('%Y/%m/%d') if order.created_at else '' }}
+            </td>
+            <td>
+              <a href="{{ url_for('orders_bp.order_detail', order_id=order.id) }}"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-inbox fs-1 d-block mb-3 opacity-50"></i>
+      <p>لا توجد طلبات بعد</p>
+      <a href="{{ url_for('orders_bp.add_order') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>أضف أول طلب
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

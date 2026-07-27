@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block title %}{{ customer.name }} — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4 gap-2">
+  <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-right"></i>
+  </a>
+  <h2 class="fw-bold mb-0 me-auto">
+    <i class="bi bi-person-circle text-primary me-1"></i>{{ customer.name }}
+  </h2>
+  <a href="{{ url_for('orders_bp.add_order') }}?customer_id={{ customer.id }}"
+     class="btn btn-success btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>طلب جديد
+  </a>
+  <a href="{{ url_for('customers_bp.edit_customer', cust_id=customer.id) }}"
+     class="btn btn-primary btn-sm">
+    <i class="bi bi-pencil me-1"></i>تعديل
+  </a>
+</div>
+
+<div class="row g-4">
+  <!-- بيانات العميل -->
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold border-bottom">
+        <i class="bi bi-person-fill text-primary me-1"></i>بيانات العميل
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-4 text-muted">الهاتف</dt>
+          <dd class="col-8">
+            {% if customer.phone %}
+              <a href="tel:{{ customer.phone }}">{{ customer.phone }}</a>
+            {% else %}—{% endif %}
+          </dd>
+          <dt class="col-4 text-muted">البريد</dt>
+          <dd class="col-8 small">{{ customer.email or '—' }}</dd>
+          <dt class="col-4 text-muted">العنوان</dt>
+          <dd class="col-8 small">{{ customer.address or '—' }}</dd>
+          <dt class="col-4 text-muted">الحالة</dt>
+          <dd class="col-8">
+            {% if customer.is_active %}
+              <span class="badge bg-success-subtle text-success border border-success">نشط</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary border border-secondary">معطّل</span>
+            {% endif %}
+          </dd>
+          <dt class="col-4 text-muted">الإجمالي</dt>
+          <dd class="col-8 fw-bold text-success">{{ '%.2f'|format(customer.total_spent) }} ر.س</dd>
+        </dl>
+        {% if customer.notes %}
+        <hr class="my-2">
+        <p class="small text-muted mb-0">{{ customer.notes }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- مركبات العميل -->
+  <div class="col-12 col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-car-front text-primary me-1"></i>المركبات</span>
+        <a href="{{ url_for('customers_bp.add_vehicle', cust_id=customer.id) }}"
+           class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-lg me-1"></i>إضافة مركبة
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% set vehicles_list = vehicles %}
+        {% if vehicles_list %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>الماركة / الموديل</th>
+                <th>السنة</th>
+                <th>رقم اللوحة</th>
+                <th>اللون</th>
+                <th class="text-center">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for v in vehicles_list %}
+              <tr>
+                <td class="fw-semibold">{{ v.make or '—' }} {{ v.model or '' }}</td>
+                <td>{{ v.year or '—' }}</td>
+                <td><span class="badge bg-dark">{{ v.plate_number or '—' }}</span></td>
+                <td>{{ v.color or '—' }}</td>
+                <td class="text-center">
+                  <div class="btn-group btn-group-sm">
+                    <a href="{{ url_for('customers_bp.edit_vehicle', vid=v.id) }}"
+                       class="btn btn-outline-primary" title="تعديل">
+                      <i class="bi bi-pencil"></i>
+                    </a>
+                    <form method="POST"
+                          action="{{ url_for('customers_bp.delete_vehicle', vid=v.id) }}"
+                          onsubmit="return confirm('حذف المركبة؟')">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button class="btn btn-outline-danger" title="حذف">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-3 text-muted small">
+          لا توجد مركبات مسجّلة
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- آخر طلبات العميل -->
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-list-check text-primary me-1"></i>آخر الطلبات
+      </div>
+      <div class="card-body p-0">
+        {% set orders = recent_orders %}
+        {% if orders %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>رقم الطلب</th>
+                <th>الخدمة</th>
+                <th>الإجمالي</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for o in orders %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('orders_bp.order_detail', order_id=o.id) }}"
+                     class="badge bg-light text-dark border text-decoration-none">
+                    {{ o.order_number }}
+                  </a>
+                </td>
+                <td>{{ o.category.name if o.category else '—' }}</td>
+                <td class="fw-semibold">{{ '%.2f'|format(o.final_price) }} ر.س</td>
+                <td>
+                  <span class="badge bg-{{ o.status_color }}-subtle text-{{ o.status_color }} border border-{{ o.status_color }}">
+                    {{ o.status }}
+                  </span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-3 text-muted small">لا توجد طلبات</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

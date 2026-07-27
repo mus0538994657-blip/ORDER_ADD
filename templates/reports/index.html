@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+{% block title %}التقارير — {{ config.WORKSHOP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h2 class="fw-bold mb-0"><i class="bi bi-bar-chart-line-fill text-primary me-2"></i>التقارير</h2>
+  <a href="{{ url_for('reports_bp.export_excel') }}?date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}&category={{ category_filter }}"
+     class="btn btn-success btn-sm">
+    <i class="bi bi-file-earmark-excel me-1"></i>Excel
+  </a>
+  <a href="{{ url_for('reports_bp.export_pdf') }}?date_from={{ date_from }}&date_to={{ date_to }}&status={{ status_filter }}&category={{ category_filter }}"
+     class="btn btn-danger btn-sm">
+    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+  </a>
+</div>
+
+<!-- فلترة -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold">من تاريخ</label>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold">إلى تاريخ</label>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold">الحالة</label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">الكل</option>
+          {% for s in statuses %}
+            <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold">الصنف</label>
+        <select name="category" class="form-select form-select-sm">
+          <option value="">الكل</option>
+          {% for c in categories %}
+            <option value="{{ c.id }}" {% if c.id == category_filter %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-filter me-1"></i>فلترة
+        </button>
+        <a href="{{ url_for('reports_bp.index') }}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ملخص الإيرادات -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm border-start border-4 border-primary">
+      <div class="card-body">
+        <div class="text-muted small">إجمالي الطلبات</div>
+        <div class="fs-3 fw-bold text-primary">{{ orders|length }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card border-0 shadow-sm border-start border-4 border-success">
+      <div class="card-body">
+        <div class="text-muted small">إجمالي الإيرادات</div>
+        <div class="fs-3 fw-bold text-success">{{ '%.2f'|format(total_revenue) }} ر.س</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- إحصائيات حسب الحالة -->
+<div class="row g-3 mb-4">
+  {% for status, data in stats_by_status.items() %}
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small mb-1">{{ status }}</div>
+        <div class="fw-bold fs-5 text-{{ data.color }}">{{ data.count }} طلب</div>
+        <div class="small text-muted">{{ '%.2f'|format(data.revenue) }} ر.س</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- إحصائيات حسب الصنف -->
+{% if stats_by_category %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white fw-semibold">
+    <i class="bi bi-pie-chart-fill text-primary me-1"></i>حسب الصنف
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>الصنف</th>
+          <th>عدد الطلبات</th>
+          <th>الإيرادات</th>
+          <th>النسبة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, data in stats_by_category.items()|sort(attribute='1.count', reverse=True) %}
+        <tr>
+          <td>{{ name }}</td>
+          <td>{{ data.count }}</td>
+          <td>{{ '%.2f'|format(data.revenue) }} ر.س</td>
+          <td>
+            {% if total_revenue > 0 %}
+            {% set pct = (data.revenue / total_revenue * 100)|round(1) %}
+            <div class="progress" style="height:6px">
+              <div class="progress-bar bg-primary" style="width:{{ pct }}%"></div>
+            </div>
+            <small>{{ pct }}%</small>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
