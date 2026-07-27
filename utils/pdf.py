@@ -348,34 +348,42 @@ def generate_orders_pdf(
 # PDF طلب مفرد (فاتورة / أمر عمل)
 # ---------------------------------------------------------------------------
 
-# عرض الأعمدة لجدول بنود الطلب — مجموعها = CONTENT_W
+# عرض الأعمدة لجدول بنود الطلب — مجموعها = CONTENT_W (18cm)
+# 0.6 + 2.0 + 4.0 + 4.0 + 1.5 + 1.5 + 2.2 + 2.2 = 18.0 cm
+_ITEM_COL_FIXED = (0.6 + 2.0 + 4.0 + 1.5 + 1.5 + 2.2 + 2.2) * cm  # 14 cm
 _ITEM_WIDTHS = [
-    1.2 * cm,   # #
-    2.2 * cm,   # الكود
-    5.5 * cm,   # الاسم
-    CONTENT_W - (1.2 + 2.2 + 5.5 + 5.5 + 1.8 + 2.0 + 2.5 + 2.5) * cm,  # الوصف
-    1.8 * cm,   # الوحدة
-    2.0 * cm,   # الكمية
-    2.5 * cm,   # سعر الوحدة
-    2.5 * cm,   # الإجمالي
+    0.6 * cm,                          # #
+    2.0 * cm,                          # الكود
+    4.0 * cm,                          # الاسم
+    CONTENT_W - _ITEM_COL_FIXED,       # الوصف ≈ 4 cm (ديناميكي)
+    1.5 * cm,                          # الوحدة
+    1.5 * cm,                          # الكمية
+    2.2 * cm,                          # سعر الوحدة
+    2.2 * cm,                          # الإجمالي
 ]
 
 
 def _info_table(pairs: list[tuple[str, str]], label_w: float = 3.0 * cm) -> Table:
     """ينشئ جدول بيانات info مكوّن من سطرين (label | value)."""
-    data = [[ar(k), ar(str(v) if v else '—')] for k, v in pairs]
-    col_w = [label_w, CONTENT_W / 2 - label_w]
+    val_w = CONTENT_W / 2 - label_w
+    lbl_style = ParagraphStyle('InfoLbl', fontName=_FONT_BOLD, fontSize=9,
+                               leading=12, textColor=CLR_GREY, alignment=TA_RIGHT,
+                               wordWrap='RTL')
+    val_style = ParagraphStyle('InfoVal', fontName=_FONT, fontSize=9,
+                               leading=12, textColor=CLR_PRI_DARK, alignment=TA_RIGHT,
+                               wordWrap='RTL')
+    data = [
+        [Paragraph(ar(k), lbl_style), Paragraph(ar(str(v) if v else '—'), val_style)]
+        for k, v in pairs
+    ]
+    col_w = [label_w, val_w]
     tbl = Table(data, colWidths=col_w)
     tbl.setStyle(TableStyle([
-        ('FONTNAME',      (0, 0), (0, -1), _FONT_BOLD),
-        ('FONTNAME',      (1, 0), (1, -1), _FONT),
-        ('FONTSIZE',      (0, 0), (-1, -1), 9),
-        ('TEXTCOLOR',     (0, 0), (0, -1), CLR_GREY),
-        ('TEXTCOLOR',     (1, 0), (1, -1), CLR_PRI_DARK),
-        ('ALIGN',         (0, 0), (-1, -1), 'RIGHT'),
         ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING',    (0, 0), (-1, -1), 3),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 4),
         ('LINEBELOW',     (0, -1), (-1, -1), 0.4, CLR_GRID),
     ]))
     return tbl
@@ -556,28 +564,43 @@ def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الز
     story.append(section_header('بنود الطلب'))
     story.append(Spacer(1, 2))
 
-    item_hdrs = [ar('#'), ar('الكود'), ar('الاسم'), ar('الوصف'),
-                 ar('الوحدة'), ar('الكمية'), ar('سعر الوحدة'), ar('الإجمالي')]
+    # أنماط خلايا الجدول (تلتف داخل عرض العمود)
+    _hdr_s = ParagraphStyle('IH', fontName=_FONT_BOLD, fontSize=9, leading=11,
+                             textColor=CLR_WHITE, alignment=TA_CENTER, wordWrap='RTL')
+    _num_s = ParagraphStyle('IN', fontName=_FONT,      fontSize=9, leading=11,
+                             textColor=CLR_PRI_DARK, alignment=TA_CENTER)
+    _txt_s = ParagraphStyle('IT', fontName=_FONT,      fontSize=9, leading=11,
+                             textColor=CLR_PRI_DARK, alignment=TA_RIGHT, wordWrap='RTL')
+    _smry_s= ParagraphStyle('IS', fontName=_FONT_BOLD, fontSize=9, leading=11,
+                             textColor=CLR_PRI_DARK, alignment=TA_RIGHT, wordWrap='RTL')
+    _smry_w= ParagraphStyle('ISW', fontName=_FONT_BOLD, fontSize=9, leading=11,
+                              textColor=CLR_WHITE, alignment=TA_RIGHT, wordWrap='RTL')
+
+    def _p(text, style=None):
+        return Paragraph(ar(str(text)) if text else '', style or _txt_s)
+
+    item_hdrs = [_p(t, _hdr_s) for t in
+                 ['#', 'الكود', 'الاسم', 'الوصف', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي']]
     rows: list[list] = [item_hdrs]
 
     for i, item in enumerate(items, 1):
         rows.append([
-            str(i),
-            ar(item.code),
-            ar(item.name),
-            ar(item.description or ''),
-            ar(item.unit),
-            f'{item.quantity:g}',
-            f'{item.unit_price:.2f}',
-            f'{item.total:.2f}',
+            _p(str(i), _num_s),
+            _p(item.code, _num_s),
+            _p(item.name),
+            _p(item.description or ''),
+            _p(item.unit, _num_s),
+            _p(f'{item.quantity:g}', _num_s),
+            _p(f'{item.unit_price:.2f}', _num_s),
+            _p(f'{item.total:.2f}', _num_s),
         ])
 
     # صف المجموع
     subtotal = sum(it.total for it in items)
-    rows.append([ar('المجموع'), '', '', '', '', '', '', f'{subtotal:.2f}'])
+    rows.append([_p('المجموع', _smry_s), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'{subtotal:.2f}', _num_s)])
     if order.discount:
-        rows.append([ar('الخصم'), '', '', '', '', '', '', f'- {order.discount:.2f}'])
-    rows.append([ar('الإجمالي النهائي'), '', '', '', '', '', '', f'{order.final_price:.2f}'])
+        rows.append([_p('الخصم', _smry_s), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'- {order.discount:.2f}', _num_s)])
+    rows.append([_p('الإجمالي النهائي', _smry_w), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'{order.final_price:.2f}', _smry_w)])
 
     total_rows = len(rows)
     summary_start = total_rows - (3 if order.discount else 2)

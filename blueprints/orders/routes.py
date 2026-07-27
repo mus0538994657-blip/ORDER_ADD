@@ -422,7 +422,7 @@ def export_order_excel(order_id):
         c = ws.cell(row=row, column=col, value=value)
         c.font      = Font(bold=bold, color=color, size=size, name='Arial')
         c.alignment = Alignment(horizontal='center', vertical='center',
-                                wrap_text=True, reading_order=2)
+                                wrap_text=True, readingOrder=2)
         c.border    = border
         if fill:
             c.fill = fill
