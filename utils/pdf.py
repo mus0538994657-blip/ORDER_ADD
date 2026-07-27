@@ -59,11 +59,12 @@ CLR_GREY_LT   = colors.HexColor('#969798')
 # ---------------------------------------------------------------------------
 _FONT      = 'Helvetica'
 _FONT_BOLD = 'Helvetica-Bold'
+_FONT_ITALIC = 'Helvetica-Oblique'
 
 
 def _register_arabic_font() -> None:
-    global _FONT, _FONT_BOLD
-    candidates = [
+    global _FONT, _FONT_BOLD, _FONT_ITALIC
+    regular_candidates = [
         os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'NotoNaskhArabic.ttf'),
         os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'Amiri-Regular.ttf'),
         r'C:\Windows\Fonts\arial.ttf',
@@ -71,15 +72,32 @@ def _register_arabic_font() -> None:
         '/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf',
         '/usr/share/fonts/truetype/amiri/Amiri-Regular.ttf',
     ]
-    for path in candidates:
+    italic_candidates = [
+        os.path.join(os.path.dirname(__file__), '..', 'static', 'fonts', 'NotoNaskhArabic-Italic.ttf'),
+        r'C:\Windows\Fonts\ariali.ttf',    # Arial Italic
+        r'C:\Windows\Fonts\tahomai.ttf',   # Tahoma (no italic, falls back)
+        '/usr/share/fonts/truetype/amiri/Amiri-Italic.ttf',
+    ]
+    for path in regular_candidates:
         norm = os.path.normpath(path)
         if os.path.isfile(norm):
             try:
                 pdfmetrics.registerFont(TTFont('Arabic', norm))
                 _FONT = _FONT_BOLD = 'Arabic'
-                return
+                break
             except Exception:
                 continue
+
+    if _FONT == 'Arabic':
+        for path in italic_candidates:
+            norm = os.path.normpath(path)
+            if os.path.isfile(norm):
+                try:
+                    pdfmetrics.registerFont(TTFont('ArabicItalic', norm))
+                    _FONT_ITALIC = 'ArabicItalic'
+                    break
+                except Exception:
+                    continue
 
 
 _register_arabic_font()
@@ -414,11 +432,21 @@ def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الز
         canvas.drawRightString(PAGE_W - MARGIN_H,
                                bar1_y + (bar1_h - 12) / 2 + 2,
                                ar(workshop_name))
-        canvas.setFont(_FONT, 9)
+
+        # تاريخ الطباعة — خط مائل (italic simulation بتحويل affine)
+        date_str = ar(f'تاريخ الطباعة: {datetime.now().strftime("%Y-%m-%d")}')
+        date_x = MARGIN_H
+        date_y = bar1_y + (bar1_h - 9) / 2 + 2
+        canvas.saveState()
+        canvas.setFont(_FONT_ITALIC, 9)
         canvas.setFillColor(colors.HexColor('#aee6c6'))
-        canvas.drawString(MARGIN_H,
-                          bar1_y + (bar1_h - 9) / 2 + 2,
-                          ar(f'تاريخ الطباعة: {datetime.now().strftime("%Y-%m-%d")}'))
+        # shear matrix لمحاكاة الخط المائل إذا لم يتوفر خط italic منفصل
+        if _FONT_ITALIC == _FONT:  # fallback: لا يوجد خط italic منفصل
+            canvas.transform(1, 0, -0.2, 1, date_x + 0.2 * date_y, 0)
+            canvas.drawString(0, date_y, date_str)
+        else:
+            canvas.drawString(date_x, date_y, date_str)
+        canvas.restoreState()
 
         # شريط رقم الطلب + الحالة
         bar2_h = 1.0 * cm
@@ -543,8 +571,9 @@ def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الز
     gap = 6
     half = CONTENT_W / 2 - gap / 2
 
+    # RTL: المركبة يسار — العميل يمين (في ReportLab LTR = يسار أولاً)
     info_outer = Table(
-        [[cust_hdr, veh_hdr], [cust_tbl, veh_tbl]],
+        [[veh_hdr, cust_hdr], [veh_tbl, cust_tbl]],
         colWidths=[half, half],
         spaceBefore=4,
     )
@@ -579,12 +608,19 @@ def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الز
     def _p(text, style=None):
         return Paragraph(ar(str(text)) if text else '', style or _txt_s)
 
-    item_hdrs = [_p(t, _hdr_s) for t in
-                 ['#', 'الكود', 'الاسم', 'الوصف', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي']]
+    # RTL: نبني البيانات بالترتيب اللوجيكي ثم نعكسها
+    # الترتيب اللوجيكي: [#, كود, اسم, وصف, وحدة, كمية, سعر, إجمالي]
+    # بعد العكس (لعرض RTL): [إجمالي, سعر, كمية, وحدة, وصف, اسم, كود, #]
+    _widths_rtl = list(reversed(_ITEM_WIDTHS))
+
+    def _rtl(row): return list(reversed(row))
+
+    item_hdrs = _rtl([_p(t, _hdr_s) for t in
+                      ['#', 'الكود', 'الاسم', 'الوصف', 'الوحدة', 'الكمية', 'سعر الوحدة', 'الإجمالي']])
     rows: list[list] = [item_hdrs]
 
     for i, item in enumerate(items, 1):
-        rows.append([
+        rows.append(_rtl([
             _p(str(i), _num_s),
             _p(item.code, _num_s),
             _p(item.name),
@@ -593,35 +629,36 @@ def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الز
             _p(f'{item.quantity:g}', _num_s),
             _p(f'{item.unit_price:.2f}', _num_s),
             _p(f'{item.total:.2f}', _num_s),
-        ])
+        ]))
 
-    # صف المجموع
+    # صفوف الملخص — بعد العكس: القيمة في col 0 (يسار=إجمالي)، الملصق يمتد 1→7
     subtotal = sum(it.total for it in items)
-    rows.append([_p('المجموع', _smry_s), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'{subtotal:.2f}', _num_s)])
+    # [value, '', '', '', '', '', '', label] ثم معكوس → [label, '', '', '', '', '', '', value]
+    # نبني بالترتيب العادي ثم نعكس
+    rows.append(_rtl([_p('المجموع', _smry_s), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'{subtotal:.2f}', _num_s)]))
     if order.discount:
-        rows.append([_p('الخصم', _smry_s), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'- {order.discount:.2f}', _num_s)])
-    rows.append([_p('الإجمالي النهائي', _smry_w), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'{order.final_price:.2f}', _smry_w)])
+        rows.append(_rtl([_p('الخصم', _smry_s), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'- {order.discount:.2f}', _num_s)]))
+    rows.append(_rtl([_p('الإجمالي النهائي', _smry_w), _p(''), _p(''), _p(''), _p(''), _p(''), _p(''), _p(f'{order.final_price:.2f}', _smry_w)]))
 
     total_rows = len(rows)
     summary_start = total_rows - (3 if order.discount else 2)
 
-    items_tbl = Table(rows, colWidths=_ITEM_WIDTHS, repeatRows=1, splitByRow=True)
+    # بعد العكس: col 0 = إجمالي (يسار)، col 7 = # (يمين)
+    # SPAN: الملصق في cols 0..6، القيمة في col 7
+    items_tbl = Table(rows, colWidths=_widths_rtl, repeatRows=1, splitByRow=True)
     items_style = [
         # رأس الجدول
         ('BACKGROUND',    (0, 0),  (-1, 0),  CLR_PRIMARY),
         ('TEXTCOLOR',     (0, 0),  (-1, 0),  CLR_WHITE),
-        ('FONTNAME',      (0, 0),  (-1, 0),  _FONT_BOLD),
-        ('FONTSIZE',      (0, 0),  (-1, 0),  10),
         # جسم الجدول
-        ('FONTNAME',      (0, 1),  (-1, summary_start - 1), _FONT),
-        ('FONTSIZE',      (0, 1),  (-1, summary_start - 1), 10),
         ('ROWBACKGROUNDS',(0, 1),  (-1, summary_start - 1), [CLR_WHITE, CLR_ALT_ROW]),
-        # صفوف الملخص
+        # صفوف الملخص — خلفية موحدة للصف بأكمله
         ('BACKGROUND',    (0, summary_start), (-1, -1), CLR_TOTAL_ROW),
         ('FONTNAME',      (0, summary_start), (-1, -1), _FONT_BOLD),
-        ('FONTSIZE',      (0, summary_start), (-1, -1), 10),
-        ('SPAN',          (0, summary_start), (-2, summary_start)),
         # عام
+        ('FONTNAME',      (0, 0),  (-1, -1), _FONT),
+        ('FONTSIZE',      (0, 0),  (-1, -1), 9),
+        ('FONTNAME',      (0, 0),  (-1, 0),  _FONT_BOLD),
         ('ALIGN',         (0, 0),  (-1, -1), 'CENTER'),
         ('VALIGN',        (0, 0),  (-1, -1), 'MIDDLE'),
         ('GRID',          (0, 0),  (-1, -1), 0.4, CLR_GRID),
@@ -631,16 +668,18 @@ def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الز
         ('RIGHTPADDING',  (0, 0),  (-1, -1), 3),
     ]
 
-    # SPAN لصفوف الخصم والإجمالي النهائي
+    # SPAN: بعد العكس، الملصق (المجموع/الخصم/الإجمالي) في أعمدة 0→6، القيمة في col 7
+    items_style.append(('SPAN', (0, summary_start), (-2, summary_start)))
+    last_row = total_rows - 1
     if order.discount:
         items_style.append(('SPAN', (0, summary_start + 1), (-2, summary_start + 1)))
-        items_style.append(('SPAN', (0, summary_start + 2), (-2, summary_start + 2)))
-        items_style.append(('BACKGROUND', (0, summary_start + 2), (-1, summary_start + 2), CLR_PRIMARY))
-        items_style.append(('TEXTCOLOR',  (0, summary_start + 2), (-1, summary_start + 2), CLR_WHITE))
+        items_style.append(('SPAN', (0, last_row), (-2, last_row)))
+        items_style.append(('BACKGROUND', (0, last_row), (-1, last_row), CLR_PRIMARY))
+        items_style.append(('TEXTCOLOR',  (0, last_row), (-1, last_row), CLR_WHITE))
     else:
-        items_style.append(('SPAN', (0, summary_start + 1), (-2, summary_start + 1)))
-        items_style.append(('BACKGROUND', (0, summary_start + 1), (-1, summary_start + 1), CLR_PRIMARY))
-        items_style.append(('TEXTCOLOR',  (0, summary_start + 1), (-1, summary_start + 1), CLR_WHITE))
+        items_style.append(('SPAN', (0, last_row), (-2, last_row)))
+        items_style.append(('BACKGROUND', (0, last_row), (-1, last_row), CLR_PRIMARY))
+        items_style.append(('TEXTCOLOR',  (0, last_row), (-1, last_row), CLR_WHITE))
 
     items_tbl.setStyle(TableStyle(items_style))
     story.append(items_tbl)
