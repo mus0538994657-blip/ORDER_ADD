@@ -370,6 +370,158 @@ def export_excel():
 # ظ…ط³ط§ط¹ط¯ ط¯ط§ط®ظ„ظٹ
 # ---------------------------------------------------------------------------
 
+
+
+# ---------------------------------------------------------------------------
+# تصدير طلب مفرد — PDF
+# ---------------------------------------------------------------------------
+
+@orders_bp.route('/<int:order_id>/export/pdf')
+@login_required
+def export_order_pdf(order_id):
+    from utils.pdf import generate_order_pdf
+    order = Order.query.get_or_404(order_id)
+    items = order.items.all()
+    workshop_name = current_app.config.get('WORKSHOP_NAME', 'ورشة الزجاج')
+    buf = generate_order_pdf(order, items, workshop_name)
+    filename = f'order_{order.order_number}_{datetime.utcnow().strftime("%Y%m%d")}.pdf'
+    return send_file(buf, mimetype='application/pdf',
+                     as_attachment=True, download_name=filename)
+
+
+# ---------------------------------------------------------------------------
+# تصدير طلب مفرد — Excel
+# ---------------------------------------------------------------------------
+
+@orders_bp.route('/<int:order_id>/export/excel')
+@login_required
+def export_order_excel(order_id):
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    order = Order.query.get_or_404(order_id)
+    items = order.items.all()
+    cust  = order.customer
+    veh   = order.vehicle
+    workshop_name = current_app.config.get('WORKSHOP_NAME', 'ورشة الزجاج')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'أمر العمل'
+    ws.sheet_view.rightToLeft = True
+
+    green_fill = PatternFill('solid', fgColor='00663d')
+    light_fill = PatternFill('solid', fgColor='E0F5EC')
+    total_fill = PatternFill('solid', fgColor='aee6c6')
+    alt_fill   = PatternFill('solid', fgColor='f6f9f8')
+    thin   = Side(style='thin', color='BBBBBB')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    def _cell(row, col, value, bold=False, color='000000', fill=None, size=10):
+        c = ws.cell(row=row, column=col, value=value)
+        c.font      = Font(bold=bold, color=color, size=size, name='Arial')
+        c.alignment = Alignment(horizontal='center', vertical='center',
+                                wrap_text=True, reading_order=2)
+        c.border    = border
+        if fill:
+            c.fill = fill
+        return c
+
+    # صف العنوان
+    ws.merge_cells('A1:H1')
+    _cell(1, 1, workshop_name + ' — أمر عمل: ' + order.order_number,
+          bold=True, color='FFFFFF', fill=green_fill, size=13)
+    ws.row_dimensions[1].height = 28
+
+    # الحالة والتاريخ
+    ws.merge_cells('A2:D2'); ws.merge_cells('E2:H2')
+    _cell(2, 1, f'الحالة: {order.status}', bold=True, color='09572b', fill=light_fill)
+    created = order.created_at.strftime('%Y-%m-%d') if order.created_at else ''
+    _cell(2, 5, f'التاريخ: {created}', bold=True, color='09572b', fill=light_fill)
+    ws.row_dimensions[2].height = 18
+
+    # بيانات العميل | المركبة
+    ws.merge_cells('A3:D3'); ws.merge_cells('E3:H3')
+    _cell(3, 1, 'بيانات العميل',  bold=True, color='FFFFFF', fill=green_fill)
+    _cell(3, 5, 'بيانات المركبة', bold=True, color='FFFFFF', fill=green_fill)
+    ws.row_dimensions[3].height = 18
+
+    cust_info = [
+        ('الاسم',   cust.name    if cust else ''),
+        ('الهاتف',  cust.phone   if cust else ''),
+        ('البريد',  cust.email   if cust else ''),
+        ('العنوان', cust.address if cust else ''),
+    ]
+    veh_info = [
+        ('الماركة',    veh.make         if veh else ''),
+        ('الموديل',    veh.model        if veh else ''),
+        ('سنة الصنع',  str(veh.year)    if veh and veh.year else ''),
+        ('رقم اللوحة', veh.plate_number if veh else ''),
+    ]
+    for i, ((lbl, val), (vlbl, vval)) in enumerate(zip(cust_info, veh_info), 4):
+        ws.merge_cells(f'A{i}:B{i}'); ws.merge_cells(f'C{i}:D{i}')
+        ws.merge_cells(f'E{i}:F{i}'); ws.merge_cells(f'G{i}:H{i}')
+        _cell(i, 1, lbl,  bold=True, fill=alt_fill)
+        _cell(i, 3, val)
+        _cell(i, 5, vlbl, bold=True, fill=alt_fill)
+        _cell(i, 7, vval)
+        ws.row_dimensions[i].height = 15
+
+    # رأس جدول البنود
+    item_row = 9
+    hdrs = ['#','كود الصنف','اسم الصنف','الوصف','الوحدة','الكمية','سعر الوحدة','الإجمالي']
+    for c, h in enumerate(hdrs, 1):
+        _cell(item_row, c, h, bold=True, color='FFFFFF', fill=green_fill, size=11)
+    ws.row_dimensions[item_row].height = 20
+
+    # بنود
+    for idx, item in enumerate(items, 1):
+        r = item_row + idx
+        f = alt_fill if idx % 2 == 0 else None
+        for c, v in enumerate([idx, item.code, item.name, item.description or '',
+                                item.unit, item.quantity, item.unit_price, item.total], 1):
+            _cell(r, c, v, fill=f)
+        ws.row_dimensions[r].height = 15
+
+    # ملخص
+    last = item_row + len(items)
+    summary = [('مجموع البنود', order.price)]
+    if order.discount:
+        summary.append(('الخصم', -order.discount))
+    summary.append(('الإجمالي النهائي', order.final_price))
+    for i, (lbl, val) in enumerate(summary, 1):
+        r = last + i
+        is_final = (lbl == 'الإجمالي النهائي')
+        f = green_fill if is_final else total_fill
+        tc = 'FFFFFF' if is_final else '09572b'
+        ws.merge_cells(f'A{r}:G{r}')
+        _cell(r, 1, lbl, bold=True, color=tc, fill=f)
+        _cell(r, 8, val, bold=True, color=tc, fill=f)
+        ws.row_dimensions[r].height = 17
+
+    # ملاحظات
+    if order.notes:
+        nr = last + len(summary) + 2
+        ws.merge_cells(f'A{nr}:H{nr}')
+        _cell(nr, 1, 'ملاحظات', bold=True, color='FFFFFF', fill=green_fill)
+        nr += 1
+        ws.merge_cells(f'A{nr}:H{nr}')
+        _cell(nr, 1, order.notes)
+        ws.row_dimensions[nr].height = 24
+
+    for i, w in enumerate([6,14,22,24,10,10,14,14], 1):
+        from openpyxl.utils import get_column_letter as gcl
+        ws.column_dimensions[gcl(i)].width = w
+
+    output = io.BytesIO()
+    wb.save(output); output.seek(0)
+    fname = f'order_{order.order_number}_{datetime.utcnow().strftime("%Y%m%d")}.xlsx'
+    return send_file(output,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name=fname)
+
+
 def _categories_json(categories) -> str:
     """ظٹظڈط­ظˆظ‘ظ„ ظ‚ط§ط¦ظ…ط© ط§ظ„ط£طµظ†ط§ظپ ط¥ظ„ظ‰ JSON ظ„ظ„ظ€ JavaScript."""
     return json.dumps([c.to_dict() for c in categories], ensure_ascii=False)

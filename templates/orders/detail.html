@@ -1,18 +1,93 @@
 ﻿{% extends 'base.html' %}
 {% block title %}{{ order.order_number }} — {{ config.WORKSHOP_NAME }}{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ── أزرار التصدير ── */
+.export-btn { min-width: 110px; }
+
+/* ── طباعة الصفحة ── */
+@media print {
+  /* إخفاء كل شيء غير منطقة الطباعة */
+  .navbar, .page-header-actions, .status-change-card,
+  .no-print, footer, nav { display: none !important; }
+
+  .page-body { padding: 0 !important; margin: 0 !important; }
+  body { font-size: 11pt; }
+
+  .card { border: 1px solid #ccc !important; box-shadow: none !important; }
+  .card-header { background: #00663d !important; color: #fff !important;
+                  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* جدول البنود */
+  .print-table thead { background: #00663d !important; color: #fff !important;
+                        -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .table-success-bg { background: #aee6c6 !important;
+                       -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* رأس الطباعة */
+  .print-header { display: flex !important; }
+  a[href]:after { content: none !important; }
+}
+
+/* رأس الطباعة (مخفي في المتصفح) */
+.print-header {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 3px solid #00663d;
+  padding-bottom: .5rem;
+  margin-bottom: 1rem;
+}
+.print-header .ph-logo { font-size: 1.4rem; font-weight: 700; color: #00663d; }
+.print-header .ph-meta { text-align: left; font-size: .82rem; color: #666; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center mb-4 gap-2">
-  <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary btn-sm">
+
+<!-- رأس الطباعة (يظهر عند الطباعة فقط) -->
+<div class="print-header">
+  <div class="ph-logo">
+    🚗 {{ config.WORKSHOP_NAME }}
+  </div>
+  <div class="ph-meta">
+    أمر عمل رقم: <strong>{{ order.order_number }}</strong><br>
+    التاريخ: {{ order.created_at.strftime('%Y-%m-%d') if order.created_at else '' }}
+  </div>
+</div>
+
+<!-- ── رأس الصفحة ── -->
+<div class="d-flex align-items-center mb-4 gap-2 flex-wrap page-header-actions">
+  <a href="{{ url_for('orders_bp.list_orders') }}" class="btn btn-outline-secondary btn-sm no-print">
     <i class="bi bi-arrow-right"></i>
   </a>
   <h2 class="fw-bold mb-0 me-auto">طلب رقم: {{ order.order_number }}</h2>
   <span class="badge bg-{{ order.status_color }}-subtle text-{{ order.status_color }} border border-{{ order.status_color }} fs-6">
     <i class="bi {{ order.status_icon }} me-1"></i>{{ order.status }}
   </span>
-  <a href="{{ url_for('orders_bp.edit_order', order_id=order.id) }}" class="btn btn-primary btn-sm">
-    <i class="bi bi-pencil me-1"></i>تعديل
-  </a>
+
+  <!-- أزرار التصدير والطباعة -->
+  <div class="d-flex gap-2 flex-wrap no-print">
+    <!-- طباعة -->
+    <button onclick="window.print()" class="btn btn-outline-dark btn-sm export-btn">
+      <i class="bi bi-printer me-1"></i>طباعة
+    </button>
+    <!-- تصدير PDF -->
+    <a href="{{ url_for('orders_bp.export_order_pdf', order_id=order.id) }}"
+       class="btn btn-outline-danger btn-sm export-btn">
+      <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+    </a>
+    <!-- تصدير Excel -->
+    <a href="{{ url_for('orders_bp.export_order_excel', order_id=order.id) }}"
+       class="btn btn-outline-success btn-sm export-btn">
+      <i class="bi bi-file-earmark-excel me-1"></i>Excel
+    </a>
+    <!-- تعديل -->
+    <a href="{{ url_for('orders_bp.edit_order', order_id=order.id) }}" class="btn btn-primary btn-sm export-btn">
+      <i class="bi bi-pencil me-1"></i>تعديل
+    </a>
+  </div>
 </div>
 
 <div class="row g-4">
@@ -40,6 +115,8 @@
           </dd>
           <dt class="col-4 text-muted">البريد</dt>
           <dd class="col-8">{{ order.customer.email if order.customer else '—' }}</dd>
+          <dt class="col-4 text-muted">العنوان</dt>
+          <dd class="col-8 small">{{ order.customer.address if order.customer else '—' }}</dd>
         </dl>
       </div>
     </div>
@@ -78,7 +155,7 @@
       <div class="card-body p-0">
         {% if items %}
         <div class="table-responsive">
-          <table class="table table-hover mb-0">
+          <table class="table table-hover mb-0 print-table">
             <thead>
               <tr>
                 <th>#</th>
@@ -116,7 +193,7 @@
                 <td class="text-end text-danger fw-semibold">− {{ '%.2f'|format(order.discount) }} ر.س</td>
               </tr>
               {% endif %}
-              <tr>
+              <tr class="table-success-bg">
                 <td colspan="7" class="text-end fw-bold fs-6 pe-3">الإجمالي النهائي</td>
                 <td class="text-end fw-bold fs-5 text-success">{{ '%.2f'|format(order.final_price) }} ر.س</td>
               </tr>
@@ -142,8 +219,8 @@
   </div>
   {% endif %}
 
-  <!-- تغيير الحالة السريع -->
-  <div class="col-12">
+  <!-- تغيير الحالة -->
+  <div class="col-12 status-change-card no-print">
     <div class="card border-0 shadow-sm">
       <div class="card-header fw-semibold">
         <i class="bi bi-arrow-repeat me-1"></i>تغيير الحالة
@@ -181,5 +258,4 @@ document.querySelectorAll('.status-btn:not([disabled])').forEach(btn => {
   });
 });
 </script>
-{% endblock %}
-
+{% endblock %}

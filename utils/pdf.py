@@ -343,3 +343,299 @@ def generate_orders_pdf(
     buf.seek(0)
     return buf
 
+
+# ---------------------------------------------------------------------------
+# PDF طلب مفرد (فاتورة / أمر عمل)
+# ---------------------------------------------------------------------------
+
+# عرض الأعمدة لجدول بنود الطلب — مجموعها = CONTENT_W
+_ITEM_WIDTHS = [
+    1.2 * cm,   # #
+    2.2 * cm,   # الكود
+    5.5 * cm,   # الاسم
+    CONTENT_W - (1.2 + 2.2 + 5.5 + 5.5 + 1.8 + 2.0 + 2.5 + 2.5) * cm,  # الوصف
+    1.8 * cm,   # الوحدة
+    2.0 * cm,   # الكمية
+    2.5 * cm,   # سعر الوحدة
+    2.5 * cm,   # الإجمالي
+]
+
+
+def _info_table(pairs: list[tuple[str, str]], label_w: float = 3.0 * cm) -> Table:
+    """ينشئ جدول بيانات info مكوّن من سطرين (label | value)."""
+    data = [[ar(k), ar(str(v) if v else '—')] for k, v in pairs]
+    col_w = [label_w, CONTENT_W / 2 - label_w]
+    tbl = Table(data, colWidths=col_w)
+    tbl.setStyle(TableStyle([
+        ('FONTNAME',      (0, 0), (0, -1), _FONT_BOLD),
+        ('FONTNAME',      (1, 0), (1, -1), _FONT),
+        ('FONTSIZE',      (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR',     (0, 0), (0, -1), CLR_GREY),
+        ('TEXTCOLOR',     (1, 0), (1, -1), CLR_PRI_DARK),
+        ('ALIGN',         (0, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN',        (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING',    (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LINEBELOW',     (0, -1), (-1, -1), 0.4, CLR_GRID),
+    ]))
+    return tbl
+
+
+def generate_order_pdf(order, items: list, workshop_name: str = 'ورشة الزجاج') -> io.BytesIO:
+    """
+    يُنشئ PDF لطلب مفرد (أمر عمل / فاتورة) بمحتوى:
+    - هيدر: اسم الورشة + رقم الطلب + التاريخ
+    - جدولان جانبيان: بيانات العميل | بيانات المركبة
+    - جدول بنود الطلب مع الإجمالي
+    - ملاحظات (إن وجدت)
+    """
+    buf = io.BytesIO()
+
+    # هيدر خاص بالطلب يُعيد تعريف bar2 ليُظهر رقم الطلب
+    def _draw_order_header(canvas, doc) -> None:
+        canvas.saveState()
+
+        # شريط أخضر — اسم الورشة + تاريخ الطباعة
+        bar1_h = 1.4 * cm
+        bar1_y = PAGE_H - bar1_h
+        canvas.setFillColor(CLR_PRIMARY)
+        canvas.rect(0, bar1_y, PAGE_W, bar1_h, fill=1, stroke=0)
+
+        canvas.setFillColor(CLR_WHITE)
+        canvas.setFont(_FONT_BOLD, 12)
+        canvas.drawRightString(PAGE_W - MARGIN_H,
+                               bar1_y + (bar1_h - 12) / 2 + 2,
+                               ar(workshop_name))
+        canvas.setFont(_FONT, 9)
+        canvas.setFillColor(colors.HexColor('#aee6c6'))
+        canvas.drawString(MARGIN_H,
+                          bar1_y + (bar1_h - 9) / 2 + 2,
+                          ar(f'تاريخ الطباعة: {datetime.now().strftime("%Y-%m-%d")}'))
+
+        # شريط رقم الطلب + الحالة
+        bar2_h = 1.0 * cm
+        bar2_y = PAGE_H - bar1_h - bar2_h
+        canvas.setFillColor(CLR_PRI_LIGHT)
+        canvas.rect(0, bar2_y, PAGE_W, bar2_h, fill=1, stroke=0)
+
+        canvas.setFont(_FONT_BOLD, 11)
+        canvas.setFillColor(CLR_PRI_DARK)
+        canvas.drawRightString(PAGE_W - MARGIN_H,
+                               bar2_y + (bar2_h - 11) / 2 + 1,
+                               ar(f'أمر العمل رقم: {order.order_number}'))
+
+        canvas.setFont(_FONT, 9)
+        canvas.setFillColor(CLR_GREY)
+        created = order.created_at.strftime('%Y-%m-%d') if order.created_at else ''
+        canvas.drawString(MARGIN_H,
+                          bar2_y + (bar2_h - 9) / 2 + 1,
+                          ar(f'الحالة: {order.status}    |    التاريخ: {created}'))
+
+        canvas.setStrokeColor(CLR_GRID)
+        canvas.setLineWidth(0.75)
+        canvas.line(MARGIN_H, bar2_y - 1, PAGE_W - MARGIN_H, bar2_y - 1)
+
+        canvas.restoreState()
+
+    def _draw_order_footer(canvas, doc) -> None:
+        canvas.saveState()
+        footer_y = MARGIN_BOTTOM - 0.8 * cm
+        canvas.setStrokeColor(CLR_GRID)
+        canvas.setLineWidth(0.5)
+        canvas.line(MARGIN_H, footer_y + 5 * mm, PAGE_W - MARGIN_H, footer_y + 5 * mm)
+        canvas.setFont(_FONT, 8)
+        canvas.setFillColor(CLR_GREY_LT)
+        canvas.drawString(MARGIN_H, footer_y, ar(f'صفحة {doc.page}'))
+        canvas.drawRightString(PAGE_W - MARGIN_H, footer_y, ar(workshop_name + ' — وثيقة سرية'))
+        canvas.restoreState()
+
+    MARGIN_TOP_ORDER = 2.8 * cm  # هيدر الطلب أطول قليلاً
+
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        rightMargin=MARGIN_H,
+        leftMargin=MARGIN_H,
+        topMargin=MARGIN_TOP_ORDER,
+        bottomMargin=MARGIN_BOTTOM,
+        title=ar(f'طلب {order.order_number}'),
+        author=ar(workshop_name),
+    )
+
+    section_title_style = ParagraphStyle(
+        'SectionTitle',
+        fontName=_FONT_BOLD, fontSize=10, leading=14,
+        textColor=CLR_WHITE, alignment=TA_RIGHT,
+        leftPadding=6, rightPadding=6,
+        spaceAfter=0,
+    )
+    notes_style = ParagraphStyle(
+        'Notes',
+        fontName=_FONT, fontSize=9, leading=14,
+        textColor=CLR_GREY, alignment=TA_RIGHT,
+        spaceBefore=4,
+    )
+
+    def section_header(title: str):
+        """شريط عنوان القسم."""
+        p = Paragraph(ar(title), section_title_style)
+        t = Table([[p]], colWidths=[CONTENT_W])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), CLR_PRIMARY),
+            ('LEFTPADDING',  (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING',   (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING',(0, 0), (-1, -1), 5),
+        ]))
+        return t
+
+    story: list = []
+
+    # ─── قسم بيانات العميل والمركبة جانبياً ───
+    cust = order.customer
+    veh  = order.vehicle
+
+    cust_pairs = [
+        ('الاسم',    cust.name   if cust else ''),
+        ('الهاتف',   cust.phone  if cust else ''),
+        ('البريد',   cust.email  if cust else ''),
+        ('العنوان',  cust.address if cust else ''),
+    ]
+    veh_pairs = [
+        ('الماركة',   veh.make        if veh else ''),
+        ('الموديل',   veh.model       if veh else ''),
+        ('سنة الصنع', str(veh.year)   if veh and veh.year else ''),
+        ('رقم اللوحة', veh.plate_number if veh else ''),
+    ]
+
+    cust_tbl = _info_table(cust_pairs, label_w=2.5 * cm)
+    veh_tbl  = _info_table(veh_pairs,  label_w=2.5 * cm)
+
+    # عنوان القسمين
+    cust_hdr = Table(
+        [[Paragraph(ar('بيانات العميل'), section_title_style)]],
+        colWidths=[CONTENT_W / 2 - 3],
+    )
+    cust_hdr.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), CLR_PRIMARY),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+
+    veh_hdr = Table(
+        [[Paragraph(ar('بيانات المركبة'), section_title_style)]],
+        colWidths=[CONTENT_W / 2 - 3],
+    )
+    veh_hdr.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), CLR_PRIMARY),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+
+    gap = 6
+    half = CONTENT_W / 2 - gap / 2
+
+    info_outer = Table(
+        [[cust_hdr, veh_hdr], [cust_tbl, veh_tbl]],
+        colWidths=[half, half],
+        spaceBefore=4,
+    )
+    info_outer.setStyle(TableStyle([
+        ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING',   (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING',  (0, 0), (-1, -1), 0),
+        ('TOPPADDING',    (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LINEAFTER',     (0, 0), (0, -1), 0.5, CLR_GRID),
+    ]))
+
+    story.append(info_outer)
+    story.append(Spacer(1, 0.3 * cm))
+
+    # ─── جدول البنود ───
+    story.append(section_header('بنود الطلب'))
+    story.append(Spacer(1, 2))
+
+    item_hdrs = [ar('#'), ar('الكود'), ar('الاسم'), ar('الوصف'),
+                 ar('الوحدة'), ar('الكمية'), ar('سعر الوحدة'), ar('الإجمالي')]
+    rows: list[list] = [item_hdrs]
+
+    for i, item in enumerate(items, 1):
+        rows.append([
+            str(i),
+            ar(item.code),
+            ar(item.name),
+            ar(item.description or ''),
+            ar(item.unit),
+            f'{item.quantity:g}',
+            f'{item.unit_price:.2f}',
+            f'{item.total:.2f}',
+        ])
+
+    # صف المجموع
+    subtotal = sum(it.total for it in items)
+    rows.append([ar('المجموع'), '', '', '', '', '', '', f'{subtotal:.2f}'])
+    if order.discount:
+        rows.append([ar('الخصم'), '', '', '', '', '', '', f'- {order.discount:.2f}'])
+    rows.append([ar('الإجمالي النهائي'), '', '', '', '', '', '', f'{order.final_price:.2f}'])
+
+    total_rows = len(rows)
+    summary_start = total_rows - (3 if order.discount else 2)
+
+    items_tbl = Table(rows, colWidths=_ITEM_WIDTHS, repeatRows=1, splitByRow=True)
+    items_style = [
+        # رأس الجدول
+        ('BACKGROUND',    (0, 0),  (-1, 0),  CLR_PRIMARY),
+        ('TEXTCOLOR',     (0, 0),  (-1, 0),  CLR_WHITE),
+        ('FONTNAME',      (0, 0),  (-1, 0),  _FONT_BOLD),
+        ('FONTSIZE',      (0, 0),  (-1, 0),  10),
+        # جسم الجدول
+        ('FONTNAME',      (0, 1),  (-1, summary_start - 1), _FONT),
+        ('FONTSIZE',      (0, 1),  (-1, summary_start - 1), 10),
+        ('ROWBACKGROUNDS',(0, 1),  (-1, summary_start - 1), [CLR_WHITE, CLR_ALT_ROW]),
+        # صفوف الملخص
+        ('BACKGROUND',    (0, summary_start), (-1, -1), CLR_TOTAL_ROW),
+        ('FONTNAME',      (0, summary_start), (-1, -1), _FONT_BOLD),
+        ('FONTSIZE',      (0, summary_start), (-1, -1), 10),
+        ('SPAN',          (0, summary_start), (-2, summary_start)),
+        # عام
+        ('ALIGN',         (0, 0),  (-1, -1), 'CENTER'),
+        ('VALIGN',        (0, 0),  (-1, -1), 'MIDDLE'),
+        ('GRID',          (0, 0),  (-1, -1), 0.4, CLR_GRID),
+        ('TOPPADDING',    (0, 0),  (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0),  (-1, -1), 5),
+        ('LEFTPADDING',   (0, 0),  (-1, -1), 3),
+        ('RIGHTPADDING',  (0, 0),  (-1, -1), 3),
+    ]
+
+    # SPAN لصفوف الخصم والإجمالي النهائي
+    if order.discount:
+        items_style.append(('SPAN', (0, summary_start + 1), (-2, summary_start + 1)))
+        items_style.append(('SPAN', (0, summary_start + 2), (-2, summary_start + 2)))
+        items_style.append(('BACKGROUND', (0, summary_start + 2), (-1, summary_start + 2), CLR_PRIMARY))
+        items_style.append(('TEXTCOLOR',  (0, summary_start + 2), (-1, summary_start + 2), CLR_WHITE))
+    else:
+        items_style.append(('SPAN', (0, summary_start + 1), (-2, summary_start + 1)))
+        items_style.append(('BACKGROUND', (0, summary_start + 1), (-1, summary_start + 1), CLR_PRIMARY))
+        items_style.append(('TEXTCOLOR',  (0, summary_start + 1), (-1, summary_start + 1), CLR_WHITE))
+
+    items_tbl.setStyle(TableStyle(items_style))
+    story.append(items_tbl)
+
+    # ─── ملاحظات ───
+    if order.notes:
+        story.append(Spacer(1, 0.3 * cm))
+        story.append(section_header('ملاحظات'))
+        story.append(Spacer(1, 2))
+        story.append(Paragraph(ar(order.notes), notes_style))
+
+    cb = lambda c, d: (_draw_order_header(c, d), _draw_order_footer(c, d))
+
+    def _page_cb(canvas, doc):
+        _draw_order_header(canvas, doc)
+        _draw_order_footer(canvas, doc)
+
+    doc.build(story, onFirstPage=_page_cb, onLaterPages=_page_cb)
+    buf.seek(0)
+    return buf
+
